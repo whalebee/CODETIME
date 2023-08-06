@@ -148,7 +148,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 
         /*printf("Jacked a packet with "
                         "length of [%d]\n", header->len);
-   */
+   	*/
 
         // print Ethernet address .
         //print_Mac(ethernet);
@@ -365,8 +365,7 @@ void print_domain_name(const u_char* packet)
         
         if(domain_len) {
            int cmp_ret = chk_blockdomain(domain_str);;
-           
-           
+
            /*
            for(int i = 0; i<100; i++) {
            
@@ -432,8 +431,6 @@ void print_domain_name(const u_char* packet)
 
 void save_domainname(const char* domain_str, const u_char* packet)
 {
-	
-	
 	
 	//const char* ip = print_ip(packet);
 	
