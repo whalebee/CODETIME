@@ -187,13 +187,13 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	
 	
 	// mysql connect
-    handle = mysql_init(NULL);
-    if(!handle) {
-            printf("init error!");
-            exit(0);
-    }
+    	handle = mysql_init(NULL);
+    	if(!handle) {
+        	    printf("init error!");
+           	 exit(0);
+   	}
 	handle = mysql_real_connect(handle,host,user,password,database,0,NULL,0);
-    if(!handle) printf("connect error!\n");
+    	if(!handle) printf("connect error!\n");
        
 	// printf all data
 	u_char* domain = NULL;
@@ -236,8 +236,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 			if(res == NULL) printf("mysql_store_result error!!\n");
 			else{
 				while(row = mysql_fetch_row(res)){
-					printf("row = %s\n", row[0]);
-					printf("domain = %s\n", domain_str);
+					//printf("row = %s\n", row[0]);
+					//printf("domain = %s\n", domain_str);
 					str_len1 = strlen(row[0]);
 					
 					if(str_len1 != str_len2) continue;
