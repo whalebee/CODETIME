@@ -227,7 +227,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char* pa
 	recv_tcp = print_packet_tcp(tcp);
 
 	
-	if(recv_domain ) {
+	if(recv_domain && recv_ip && recv_tcp) {
 		// query insert in Recent_list
 		mysql_insert(recv_ip, recv_tcp, recv_domain);
 		
