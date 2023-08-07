@@ -190,8 +190,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char* pa
 	char *payload;
 	
 	char* recv_ip;
-    unsigned short int recv_tcp;
-    u_char* recv_domain;
+   	unsigned short int recv_tcp;
+    	u_char* recv_domain;
 	
 	u_int size_ip;
 	u_int size_tcp;
