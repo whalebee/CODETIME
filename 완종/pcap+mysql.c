@@ -235,13 +235,17 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 			res = mysql_store_result(handle); 
 			if(res == NULL) printf("mysql_store_result error!!\n");
 			else{
+				cmp_ret = 1;
 				while(row = mysql_fetch_row(res)){
-					//printf("row = %s\n", row[0]);
 					//printf("domain = %s\n", domain_str);
 					str_len1 = strlen(row[0]);
+					//printf("row = %s\n", row[0]);
+					//printf("domain len = %d\n",str_len2);
+					//printf("row len = %d\n",str_len1);
 					
-					if(str_len1 != str_len2) continue;
+					//if(str_len1 != str_len2) continue;
 					cmp_ret = strcmp(row[0],domain_str);
+					printf("cmp_ret = %d\n",cmp_ret);
 					if(cmp_ret == 0) break;
 				}
 			}
