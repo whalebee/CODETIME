@@ -105,7 +105,7 @@ u_char* print_packet_domain(const char *payload);
 void print_block_list(char tmp[REC_DOM_MAX][REC_DOM_LEN]);
 char* now_time();
 void mysql_insert(char* recv_ip, unsigned short int recv_tcp, u_char* recv_domain);
-void mysql_select(char* SELECT_TB);
+void mysql_select(char* SELECT);
 
 int main( int argc, char *argv[])
 {
@@ -190,8 +190,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char* pa
 	char *payload;
 	
 	char* recv_ip;
-   	unsigned short int recv_tcp;
-    	u_char* recv_domain;
+    unsigned short int recv_tcp;
+    u_char* recv_domain;
 	
 	u_int size_ip;
 	u_int size_tcp;
@@ -234,7 +234,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char* pa
 		// select * from recent_list
 		mysql_select(SELECT);
 	}
-} // end of got_packet()
+} // end of got_packet() .
 
 // query function() for print of DB contents
 MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
@@ -244,7 +244,7 @@ MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
         exit(1);
     }
     return mysql_use_result(connection);
-}
+} // end of mysql_perform_query()
 
 void print_packet_ethernet(struct sniff_ethernet* ethernet, unsigned short int payload_len, const struct pcap_pkthdr *header) {
 	
@@ -271,7 +271,7 @@ void print_packet_ethernet(struct sniff_ethernet* ethernet, unsigned short int p
 				ethernet->ether_shost[5]
 				);
 	}
-}
+} // end of print_packet_ethernet() .
 
 
 char* print_packet_ip(struct sniff_ip* ip) {
@@ -292,7 +292,7 @@ char* print_packet_ip(struct sniff_ip* ip) {
 		printf("DATA: IP dst : %s \n", IPbuffer2_str);
 	}
 	return IPbuffer2_str;
-}   
+}	// end of print_packet_ip() .
 
 unsigned short print_packet_tcp(struct sniff_tcp* tcp) {
 	// port
@@ -308,7 +308,7 @@ unsigned short print_packet_tcp(struct sniff_tcp* tcp) {
 	}
 	
 	return tcp_dst_port;
-}
+} // end of print_packet_ip() .
 
 u_char* print_packet_domain(const char *payload) {
 	
@@ -389,8 +389,7 @@ u_char* print_packet_domain(const char *payload) {
 		MODE = 0;
 	}
 	
-	
-}
+} // end of print_packet_domain() .
 
 void print_block_list(char tmp[REC_DOM_MAX][REC_DOM_LEN]) {
 		// Receive Block_list
@@ -411,7 +410,7 @@ void print_block_list(char tmp[REC_DOM_MAX][REC_DOM_LEN]) {
 		printf("\n");
 		
 		mysql_free_result(res_block);
-}
+} // end of print_block_list() .
 
 char* now_time(){
 	// for time check
@@ -423,7 +422,7 @@ char* now_time(){
 	// printf("ctime의 결과 : %s\n", time_buf);
 	
 	return time_buf;
-}
+} // end of now_time() .
 
 
 void mysql_insert(char* recv_ip, unsigned short int recv_tcp, u_char* recv_domain)
@@ -439,7 +438,7 @@ void mysql_insert(char* recv_ip, unsigned short int recv_tcp, u_char* recv_domai
 	
 	if( mysql_query(conn, query) )
 		printf("mysql_query Sucess \n");
-}
+} // end of mysql_insert() .
 
 
 void mysql_select(char* SELECT)
@@ -459,5 +458,4 @@ void mysql_select(char* SELECT)
 	}
 	printf("\n");
 	mysql_free_result(res);
-	
-}
+} // end of mysql_select() .
