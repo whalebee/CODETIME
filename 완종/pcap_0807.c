@@ -131,7 +131,7 @@ int main( int argc, char *argv[])
 
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) {
-    /*------------------ethernet------------------*/
+	/*------------------ethernet------------------*/
 	#define SIZE_ETHERNET 14 /* ethernet headers are always exactly 14 bytes */
 	const struct sniff_ethernet *ethernet; /* The ethernet header */
 	ethernet = (struct sniff_ethernet*)(packet); // ethernet header
