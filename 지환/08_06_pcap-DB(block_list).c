@@ -5,9 +5,25 @@
 #include <mysql.h>
 #include <time.h>
 
-// function()
-MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query);
- 
+	// function()
+	MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query);
+
+	// DB
+	MYSQL_RES *res;
+	MYSQL_ROW row;
+	
+	MYSQL_RES *res_block;
+	MYSQL_ROW row_block;
+
+	MYSQL* conn;
+
+	// connect DB
+	char* server = "localhost";
+	char* user = "root";
+	char* password = "1234";
+	char* database = "project";
+	
+
 // PCAP
 #define ETHER_ADDR_LEN 6
 
@@ -113,6 +129,20 @@ int main( int argc, char *argv[])
 		return 2;
 	}
 
+	// DB Connection
+	
+	conn = mysql_init(NULL);
+	if (conn == NULL) {
+		fprintf(stderr,"MySQL initialization failed");
+		return 2;
+	}
+	if (mysql_real_connect(conn, server, user, password, database, 0, NULL, 0) == NULL) {
+		fprintf(stderr,"mysql_real_connect() Unable to connect with MySQL server !");
+		mysql_close(conn);
+		return 2;
+	}
+
+
 	int result = 0;
 	result = pcap_loop(handle, 0, got_packet, NULL);
 	if( result != 0 ) {
@@ -196,32 +226,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char* pa
 
 	// New DB FOR compare with domain
 	
-	// DB
-	MYSQL_RES *res;
-	MYSQL_ROW row;
 	
-	MYSQL_RES *res_block;
-	MYSQL_ROW row_block;
-
-	MYSQL* conn = mysql_init(NULL);
-	if (conn == NULL) {
-		printf("MySQL initialization failed");
-		return;
-	}
-		
-	// connect DB
-	char* server = "localhost";
-	char* user = "root";
-	char* password = "1234";
-	char* database = "project";
-	
-	if (mysql_real_connect(conn, server, user, password, database, 0, NULL, 0) == NULL) {
-		printf("Unable to connect with MySQL server\n");
-		mysql_close(conn);
-		return;
-	}
-
-
 	if( domain_len ) {
 		int cmp_ret = 1; // for compare result
 
@@ -332,3 +337,6 @@ MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
     }
     return mysql_use_result(connection);
 }
+
+
+
