@@ -775,9 +775,7 @@ int sendraw( u_char* pre_packet, int mode)
 					payload = (u_char *)(packet + sizeof(struct iphdr) + tcphdr->doff * 4 );
 
 					size_payload = ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 );
-					#define TEMP_SIZE ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 )
 					
-
 					if (size_payload > 0) {
 						print_chars('\t',6);
 						printf("   PACKET-HEADER(try1) (%d bytes):\n", ntohs(iphdr->tot_len) - size_payload); // 40
