@@ -487,18 +487,35 @@ unsigned short in_cksum(u_short *addr, int len)
         u_short     answer=0;
         while (nleft > 1){
             sum += *w++;
+			// printf("nleft : %d \n", nleft);
             nleft -= 2;
         }
+
+		// printf("while sum : %u \n",sum);
 
         if (nleft == 1){
             *(u_char *)(&answer) = *(u_char *)w ;
             sum += answer;
         }
 
+		// printf("sum >> 16 : %u \n", sum >> 16);
         sum = (sum >> 16) + (sum & 0xffff);
         sum += (sum >> 16);
+		
+		// printf("result sum : %u \n", sum);
+		// 1110010010110111
         answer = ~sum;
-        return(answer);
+		// printf("answer : %u \n", answer);
+		// 0001101101001000
+		u_short temp = answer + sum  + 1;
+		// printf("add : %u /n", temp);
+		if( temp == 0 ) {
+			return 0;
+		} else {
+			return -1;
+		}
+	
+		// return(answer);
 }
 // end in_cksum function .
 
@@ -665,7 +682,7 @@ int sendraw( u_char* pre_packet, int mode)
 							"</html>\r\n";
 				
 				post_payload_size = strlen(temp);
-				printf("size_temp : %ld \n", post_payload_size);
+				// printf("size_temp : %ld \n", post_payload_size);
 				
 				
 				// choose output content
@@ -682,8 +699,13 @@ int sendraw( u_char* pre_packet, int mode)
 
                 tcphdr->check = in_cksum( (u_short *)pseudo_header,
                                 sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);
-
-				
+				// printf("tcp check : %u \n", tcphdr->check);
+				print_chars('\t',6);
+				if(tcphdr->check == 0 ) {
+				//	fprintf(stdout, "INFO: tcphdr in_cksum() success ! \n");
+				} else {
+					fprintf(stderr, "ERROR :  tcphdr in_cksum() result is not zero \n");
+				}
 				
                 iphdr->version = 4;
                 iphdr->ihl = 5;
@@ -706,6 +728,13 @@ int sendraw( u_char* pre_packet, int mode)
                 iphdr->daddr = dest_address.s_addr;
                 // IP 체크섬 계산.
                 iphdr->check = in_cksum( (u_short *)iphdr, sizeof(struct iphdr));
+				print_chars('\t',6);
+				if(iphdr->check == 0 ) {
+				//	fprintf(stdout, "INFO: iphdr in_cksum() success ! \n");
+				} else {
+					fprintf(stderr, "ERROR :  iphdr in_cksum() result is not zero \n");
+				}
+
 
                 address.sin_family = AF_INET;
 
