@@ -543,6 +543,7 @@ int sendraw( u_char* pre_packet, int mode)
 
 		#ifdef SUPPORT_OUTPUT
 		print_chars('\t',6);
+		print_chars('\t',6);
 		printf( "\n[raw socket sendto]\t[start]\n\n" );
 
 		// if (size_payload > 0 || 1) // origin
@@ -551,8 +552,9 @@ int sendraw( u_char* pre_packet, int mode)
 			printf("   pre_packet whole(L2-packet-data) (%d bytes only):\n", 100);
 			print_payload_right(pre_packet, 100);
 		}
+		
 		//m-debug
-		printf("DEBUG: (u_char*)packet_dmp ( in sendraw func ) == 0x%p\n", pre_packet);
+		//printf("DEBUG: (u_char*)packet_dmp ( in sendraw func ) == 0x%p\n", pre_packet);
 		#endif
 
         for( port=80; port<81; port++ ) {
@@ -587,56 +589,16 @@ int sendraw( u_char* pre_packet, int mode)
 				#endif
 
 			}
-
-			/* origin
-			ethernet = (struct sniff_ethernet*)(pre_packet);
-			if ( ethernet->ether_type == (unsigned short)*(unsigned short*)&"\x81\x00" ) {
-				#ifdef SUPPORT_OUTPUT
-				printf("vlan packet\n");
-				#endif
-				// size_vlan = 4;
-				// memcpy(packet, pre_packet, size_vlan);
-			} else if (ethernet->ether_type == (unsigned short)*(unsigned short*)&"\x08\x00" ) {
-				#ifdef SUPPORT_OUTPUT
-				printf("normal packet\n");
-				#endif
-				// size_vlan = 0;
-				// vlan_tag_disabled = 1 ;
-			} else {
-				fprintf(stderr,"NOTICE: ether_type diagnostics failed .......... \n");
-			}
-			*/
 			
 			ethernet = (struct sniff_ethernet*)(pre_packet);
 			if (ethernet->ether_type == (unsigned short)*(unsigned short*)&"\x08\x00" ) {
 				#ifdef SUPPORT_OUTPUT
+				print_chars('\t',6);
 				printf("normal packet\n");
 				#endif
-				// size_vlan = 0;
-				// vlan_tag_disabled = 1 ;
 			} else {
 				fprintf(stderr,"NOTICE: ether_type diagnostics failed .......... \n");
 			}
-
-			/*
-			if ( vlan_tag_disabled == 1 ) {
-				// if use normal IPv4 packet
-				size_vlan_apply = 0 ;
-				
-			} else {
-				// if use vlan packet
-				size_vlan_apply = size_vlan ;
-				memset (packet, 0x00, 4) ;
-			}
-			*/
-			
-                // TCP, IP reset header 
-				/*
-                iphdr = (struct iphdr *)(packet + size_vlan_apply) ;
-                memset( iphdr, 0, 20 );
-                tcphdr = (struct tcphdr *)(packet + size_vlan_apply + 20);
-                memset( tcphdr, 0, 20 );
-				*/
 
 				// TCP, IP reset header without vlan
                 iphdr = (struct iphdr *)(packet) ;
@@ -644,48 +606,21 @@ int sendraw( u_char* pre_packet, int mode)
                 tcphdr = (struct tcphdr *)(packet + 20);
                 memset( tcphdr, 0, 20 );
 
-/*
-				#ifdef SUPPORT_OUTPUT
-                // TCP 헤더 제작
-                tcphdr->source = htons( 777 );
-                tcphdr->dest = htons( port );
-                tcphdr->seq = htonl( 92929292 );
-                tcphdr->ack_seq = htonl( 12121212 );
-				#endif
-
-				printf("  	tcphdr->source  :   %d  \n", tcphdr->source );
-				printf("  	tcphdr->dest  	:   %d  \n",     tcphdr->dest );
-				printf("  	tcphdr->seq     :   %d  \n",      tcphdr->seq )  ;
-				printf("  	tcphdr->ack_seq :   %d  \n",   tcphdr->ack_seq );
-*/
-
-
 				source_address.s_addr = 
-				((struct iphdr *)(pre_packet + size_vlan + 14))->daddr ;
+				((struct iphdr *)(pre_packet + 14))->daddr ;
 				// twist s and d address
-				dest_address.s_addr = ((struct iphdr *)(pre_packet + size_vlan + 14))->saddr ;		// for return response
-				iphdr->id = ((struct iphdr *)(pre_packet + size_vlan + 14))->id ;
+				dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;		// for return response
+				iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;
 				int pre_tcp_header_size = 0;
 				char pre_tcp_header_size_char = 0x0;
-				pre_tcp_header_size = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->doff ;
-				pre_payload_size = ntohs( ((struct iphdr *)(pre_packet + size_vlan + 14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
+				pre_tcp_header_size = ((struct tcphdr *)(pre_packet + 14 + 20))->doff ;
+				pre_payload_size = ntohs( ((struct iphdr *)(pre_packet + 14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
 
-				tcphdr->source = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->dest ;		// twist s and d port
-				tcphdr->dest = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->source ;		// for return response
-				tcphdr->seq = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->ack_seq ;
-				tcphdr->ack_seq = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->seq  + htonl(pre_payload_size - 20)  ;
-				tcphdr->window = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->window ;
-
-
-				/*
-				printf("			after		\n");
-				printf("  	tcphdr->source  :   %d  \n", tcphdr->source );
-				printf("  	tcphdr->dest  	:   %d  \n",     tcphdr->dest );
-				printf("  	tcphdr->seq     :   %d  \n",      tcphdr->seq )  ;
-				printf("  	tcphdr->ack_seq :   %d  \n",   tcphdr->ack_seq );
-				*/
-
-
+				tcphdr->source = ((struct tcphdr *)(pre_packet + 14 + 20))->dest ;		// twist s and d port
+				tcphdr->dest = ((struct tcphdr *)(pre_packet + 14 + 20))->source ;		// for return response
+				tcphdr->seq = ((struct tcphdr *)(pre_packet + 14 + 20))->ack_seq ;
+				tcphdr->ack_seq = ((struct tcphdr *)(pre_packet + 14 + 20))->seq  + htonl(pre_payload_size - 20)  ;
+				tcphdr->window = ((struct tcphdr *)(pre_packet + 14 + 20))->window ;
 
 
                 tcphdr->doff = 5;
@@ -702,17 +637,18 @@ int sendraw( u_char* pre_packet, int mode)
                 pseudo_header->protocol = IPPROTO_TCP;
                 pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
 
-				#ifdef SUPPORT_OUTPUT
-				// m-debug
-				printf("DEBUG: &packet == \t\t %p \n" , &packet);
-				printf("DEBUG: pseudo_header == \t %p \n" , pseudo_header);
-				printf("DEBUG: iphdr == \t\t\t %p \n" , iphdr);
-				printf("DEBUG: tcphdr == \t\t\t %p \n" , tcphdr);
-				#endif
 
-				#ifdef SUPPORT_OUTPUT
-                strcpy( (char*)packet + 40, "HAHAHAHAHOHOHOHO\x0" );
-				#endif
+				// m-debug
+				// #ifdef SUPPORT_OUTPUT
+				// printf("DEBUG: &packet == \t\t %p \n" , &packet);
+				// printf("DEBUG: pseudo_header == \t %p \n" , pseudo_header);
+				// printf("DEBUG: iphdr == \t\t\t %p \n" , iphdr);
+				// printf("DEBUG: tcphdr == \t\t\t %p \n" , tcphdr);
+				// #endif
+
+				// #ifdef SUPPORT_OUTPUT
+                // strcpy( (char*)packet + 40, "HAHAHAHAHOHOHOHO\x0" );
+				// #endif
 
 				// choose output content
 				warning_page = 5;
@@ -752,12 +688,13 @@ int sendraw( u_char* pre_packet, int mode)
                 //iphdr->tot_len = 40;
                 iphdr->tot_len = htons(40 + post_payload_size);
 
-				#ifdef SUPPORT_OUTPUT
-				//m-debug
-				printf("DEBUG: iphdr->tot_len = %d\n", ntohs(iphdr->tot_len));
-				#endif
 
-				iphdr->id = ((struct iphdr *)(pre_packet + size_vlan + 14))->id + htons(1);
+				// m-debug
+				// #ifdef SUPPORT_OUTPUT
+				// printf("DEBUG: iphdr->tot_len = %d\n", ntohs(iphdr->tot_len));
+				// #endif
+
+				iphdr->id = ((struct iphdr *)(pre_packet + 14))->id + htons(1);
 				
 				memset( (char*)iphdr + 6 ,  0x40  , 1 );
 				
@@ -836,21 +773,14 @@ int sendraw( u_char* pre_packet, int mode)
 
 					size_payload = ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 );
 
-					printf("DEBUG: sizeof(struct iphdr) == %lu \t , \t tcphdr->doff * 4 == %hu \n",
-									sizeof(struct iphdr) , tcphdr->doff * 4);
+					// printf("DEBUG: sizeof(struct iphdr) == %lu \t , \t tcphdr->doff * 4 == %hu \n",
+					// 				sizeof(struct iphdr) , tcphdr->doff * 4);
 
-					if (size_payload > 0 || 1) {
+					if (size_payload > 0) {
 						print_chars('\t',6);
-						printf("   PACKET-HEADER(try1) (%d bytes):\n", ntohs(iphdr->tot_len) - size_payload);
+						printf("   PACKET-HEADER(try1) (%d bytes):\n", ntohs(iphdr->tot_len) - size_payload); // 40
 						//print_payload(payload, size_payload);
 						print_payload_right((const u_char*)&packet, ntohs(iphdr->tot_len) - size_payload);
-					}
-
-					if (size_payload > 0 || 1) {
-						print_chars('\t',6);
-						printf("   PACKET-HEADER(try2) (%d bytes):\n", 40);
-						//print_payload(payload, size_payload);
-						print_payload_right((const u_char*)&packet, 40);
 					}
 
 					if (size_payload > 0) {
