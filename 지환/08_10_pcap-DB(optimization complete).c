@@ -265,7 +265,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
 	
 	unsigned short int  payload_len = 0;
 	payload_len = ntohs(ip->ip_len) - size_ip - size_tcp ;
-	//printf("INFO: payload_len = %u .\n", payload_len);
+	// printf("INFO: payload_len = %u .\n", payload_len);
 
 	//printf("Jacked a packet with "
 	//		"length of [%d]\n", header->len);
@@ -638,26 +638,13 @@ int sendraw( u_char* pre_packet, int mode)
                 pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
 
 
-				// m-debug
-				// #ifdef SUPPORT_OUTPUT
-				// printf("DEBUG: &packet == \t\t %p \n" , &packet);
-				// printf("DEBUG: pseudo_header == \t %p \n" , pseudo_header);
-				// printf("DEBUG: iphdr == \t\t\t %p \n" , iphdr);
-				// printf("DEBUG: tcphdr == \t\t\t %p \n" , tcphdr);
-				// #endif
-
-				// #ifdef SUPPORT_OUTPUT
-                // strcpy( (char*)packet + 40, "HAHAHAHAHOHOHOHO\x0" );
-				// #endif
-
-				// choose output content
-				warning_page = 5;
-				if ( warning_page == 5 ){
-					// write post_payload ( redirecting data 2 )
-					//post_payload_size = 201 + 67  ;   // Content-Length: header is changed so post_payload_size is increased.
-					post_payload_size = 230 + 65  ;   // Content-Length: header is changed so post_payload_size is increased.
-                    //memcpy ( (char*)packet + 40, "HTTP/1.1 200 OK" + 0x0d0a + "Content-Length: 1" + 0x0d0a + "Content-Type: text/plain" + 0x0d0a0d0a + "a" , post_payload_size ) ;
-					memcpy ( (char*)packet + 40, "HTTP/1.1 200 OK\x0d\x0a"
+				// printf(" pre_packet : %d \n", sizeof(*pre_packet));
+				// printf(" size : %d \n", pre_payload_size);
+				// printf(" post_size : %d \n", ntohs( ((struct iphdr *)(pre_packet + 14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) );
+				
+				// printf("payload : %d \n", size_payload = ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 ));
+				
+				char *temp = "HTTP/1.1 200 OK\x0d\x0a"
 							"Content-Length: 230\x0d\x0a"
 							"Content-Type: text/html"
 							"\x0d\x0a\x0d\x0a"
@@ -675,13 +662,29 @@ int sendraw( u_char* pre_packet, int mode)
         "<h1>SITE BLOCKED</h1>\r\n"
 							"</center>\r\n"
 							"</body>\r\n"
-							"</html>", post_payload_size ) ;
+							"</html>";
+				
+				post_payload_size = strlen(temp);
+				printf("size_temp : %ld \n", post_payload_size);
+				
+				
+				// choose output content
+				warning_page = 5;
+				if ( warning_page == 5 ){
+					// write post_payload ( redirecting data 2 )
+
+					// post_payload_size = 230 + 65  ;   // Content-Length: header is changed so post_payload_size is increased.
+
+                    //memcpy ( (char*)packet + 40, "HTTP/1.1 200 OK" + 0x0d0a + "Content-Length: 1" + 0x0d0a + "Content-Type: text/plain" + 0x0d0a0d0a + "a" , post_payload_size ) ;
+					memcpy ( (char*)packet + 40, temp , post_payload_size ) ;
                 }
 				pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
 
                 tcphdr->check = in_cksum( (u_short *)pseudo_header,
                                 sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);
 
+				
+				
                 iphdr->version = 4;
                 iphdr->ihl = 5;
                 iphdr->protocol = IPPROTO_TCP;
@@ -772,9 +775,8 @@ int sendraw( u_char* pre_packet, int mode)
 					payload = (u_char *)(packet + sizeof(struct iphdr) + tcphdr->doff * 4 );
 
 					size_payload = ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 );
-
-					// printf("DEBUG: sizeof(struct iphdr) == %lu \t , \t tcphdr->doff * 4 == %hu \n",
-					// 				sizeof(struct iphdr) , tcphdr->doff * 4);
+					#define TEMP_SIZE ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 )
+					
 
 					if (size_payload > 0) {
 						print_chars('\t',6);
