@@ -662,7 +662,7 @@ int sendraw( u_char* pre_packet, int mode)
         "<h1>SITE BLOCKED</h1>\r\n"
 							"</center>\r\n"
 							"</body>\r\n"
-							"</html>";
+							"</html>\r\n";
 				
 				post_payload_size = strlen(temp);
 				printf("size_temp : %ld \n", post_payload_size);
