@@ -498,6 +498,9 @@ unsigned short in_cksum(u_short *addr, int len)
             sum += answer;
         }
 
+		printf(" sum basic : %u \n", sum);
+		printf(" sum >> 16 : %u \n", sum >> 16 );
+		printf(" (sum >> 16) & 0xffff : %u \n", (sum >> 16) & 0xffff);
 		// printf("sum >> 16 : %u \n", sum >> 16);
         sum = (sum >> 16) + (sum & 0xffff);
         sum += (sum >> 16);
@@ -515,7 +518,35 @@ unsigned short in_cksum(u_short *addr, int len)
 			return -1;
 		}
 	
-		// return(answer);
+		/*
+		basic : 3407170
+
+		sum
+		0011 0011 	1111 1101 	0100 0010
+
+		sum >> 16
+		51
+
+
+
+			0011 0011 1111 1101 	0100 0010
+		&	1111 1111
+		----------------------------------------
+			0011 0011
+		sum value should prepare to overflow !!
+				
+		sum+=
+		51
+
+
+		sum : 0011 0011
+
+		answer : 1100 1100
+		
+		*/
+		
+		
+		
 }
 // end in_cksum function .
 
