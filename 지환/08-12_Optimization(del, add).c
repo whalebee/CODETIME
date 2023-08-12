@@ -116,9 +116,6 @@ int gbl_debug = 1;
 int print_chars(char print_char, int nums);
 
 void
-print_payload(const u_char *payload, int len);
-
-void
 print_payload_right(const u_char *payload, int len);
 
 void
@@ -134,10 +131,9 @@ int sendraw( u_char* pre_packet , int mode ) ;
 void got_packet(u_char *args, const struct pcap_pkthdr *header,
     const u_char *packet);
 
-
 ///////////////////////////////////////
 //                                   //
-// begin MAIN FUNCTION !!!    //
+// begin MAIN FUNCTION !!!    		 //
 //                                   //
 ///////////////////////////////////////
 int main(int argc, char *argv[])
@@ -152,17 +148,12 @@ int main(int argc, char *argv[])
 	struct pcap_pkthdr header;	/* The header that pcap gives us */
 	const u_char *packet;		/* The actual packet */
 	struct pcap_if *devs;
+	int result = 0 ;
 	
 	/* Define the device */
-	//dev = pcap_lookupdev(errbuf);
-	//if (dev == NULL) {
-	//	fprintf(stderr, "Couldn't find default device: %s\n", errbuf);
-	//	return(2);
-	//}
 	pcap_findalldevs(&devs, errbuf);
 	printf("INFO: dev name = %s .\n" , (*devs).name );
 	dev = (*devs).name ;
-	//pcap_freealldevs(devs);
 	
 	/* Find the properties for the device */
 	if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1) {
@@ -186,41 +177,27 @@ int main(int argc, char *argv[])
 		return(2);
 	}
 	
-	if ( 0 ) {
-	for ( int i = 0 ; i < 10 ; i++ ) {
-		/* Grab a packet */
-		packet = pcap_next(handle, &header);
-		/* Print its length */
-		printf("Jacked a packet with "
-			"length of [%d]\n", header.len);
-	}
-	} // if for comment out .
-	
 	mysql_init(&conn);
 	connection = mysql_real_connect(
-			&conn,		// mariadb/mysql handler
+			&conn,				// mariadb/mysql handler
 			"localhost",		// host address
-			"root",		// db id
-			"1234",	// db pass
-			"project_db",	// db_name
-			3306,			// port
-			(char*)NULL,		// 
-			0			//
+			"root",				// db id
+			"1234",				// db pass
+			"project_db",		// db_name
+			3306,				// port
+			(char*)NULL,		// unix_socket -> usually NULL
+			0					// client_flag -> usually 0
 	);
 	
 	if ( connection == NULL ) {
-		fprintf ( stderr , "ERROR: mariadb connection error: %s\n",
-					mysql_error(&conn)
-			);
+		fprintf ( stderr , "ERROR: mariadb connection error: %s\n", mysql_error(&conn) );
 		return 1;
 	} else { 
 		fprintf ( stdout , "INFO: mariadb connection OK\n" );
 	}
 	
-	int result = 0 ;
-	//result = pcap_loop(handle, 10, got_packet, NULL) ;
-	result = pcap_loop(handle, 0, got_packet, NULL) ;
 	
+	result = pcap_loop(handle, 0, got_packet, NULL) ;
 	if ( result != 0 ) {
 		fprintf(stderr, "ERROR: pcap_loop end with error !!!!\n");
 	} else {
@@ -230,9 +207,7 @@ int main(int argc, char *argv[])
 	/* And close the session */
 	pcap_close(handle);
 	return(0);
-}
-// end of main function.
-
+} // end of main function.
 
 void got_packet(u_char *args, const struct pcap_pkthdr *header,
     const u_char *packet) {
@@ -343,9 +318,6 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
 		char domain[256];
 	};
 	
-	//struct check_domain_struct check_domain_str[100] = { 0x00 };
-	//struct check_domain_struct check_domain_str[100];
-	
 	// define variable with malloc .
 	int check_domain_str_count = 10000 ;
 	struct check_domain_struct *check_domain_str = NULL;
@@ -363,64 +335,33 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
 	
 	memset ( check_domain_str , 
 		0x00 , 
-		sizeof(struct check_domain_struct) * 
-			 check_domain_str_count
+		sizeof(struct check_domain_struct) * check_domain_str_count
 	);
-	
-	
-	//for ( int i = 0 ; i < 100 ; i++ ) {
-	//	strcpy ( check_domain_str[i].domain , "" );
-	//}
-	
-	//char check_domain[256] = "naver.com" ;
-	char *check_domain_ptr[100] = { NULL } ;
-	for ( int i = 0 ; i < 100 ; i++ ) {
-		check_domain_ptr[i] = malloc(256);
-		if ( check_domain_ptr[i] == NULL ) {
-			fprintf(stderr, "ERROR: malloc fail !!\n");
-		}
-	}
-	
-	//strcpy(check_domain_ptr[0] , "naver.com" );
-	//strcpy(check_domain_ptr[1] , "kakao.com" );
-	//strcpy(check_domain_ptr[2] , "mail.naver.com" );
 	
 	strcpy(check_domain_str[0].domain , "naver.com" );
 	strcpy(check_domain_str[1].domain , "kakao.com" );
 	strcpy(check_domain_str[2].domain , "mail.naver.com" );
 	
-	
 	if ( domain_len ) {
-		int cmp_ret = 0;
+		int cmp_ret = 1;
 		
-		cmp_ret = 1;
 		// for loop 1 .
 		for ( int i = 0 ; i < 100 ; i++ ) {
-			//cmp_ret = strcmp ( check_domain , domain_str ) ;
-			//cmp_ret = strcmp ( check_domain_ptr[i] ,
-			int str1_len = 
-				strlen ( check_domain_str[i].domain );
-
-			int str2_len = 
-				strlen ( domain_str );
-			
-			if ( str1_len != str2_len ) {
+			int str1_len = strlen ( check_domain_str[i].domain );
+			int str2_len = strlen ( domain_str );
+				
+			if ( str1_len != str2_len )
 				continue; // check next array value .
-			}
-			
-			cmp_ret = strcmp ( check_domain_str[i].domain ,  
-						domain_str ) ;
-			printf("DEBUG: domain name check result : %d\n" , 
-								cmp_ret );
+		
+			cmp_ret = strcmp ( check_domain_str[i].domain ,  domain_str ) ;
+			printf("DEBUG: domain name check result : %d\n" , cmp_ret );
 			if ( cmp_ret == 0 ) {
 				break; // stop for loop 1 .
 			}
 			
 			// break if meet null data array .
-			if ( strlen(check_domain_str[i].domain) == 0 ) {
-				break; // stop for loop 1 .
-			}
-			
+			if ( strlen(check_domain_str[i].domain) == 0 ) break; // stop for loop 1 .
+				
 		} // end for loop 1 .
 		
 		// print ip , port info .
@@ -435,6 +376,9 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
 		if ( cmp_ret == 0 ) {
 			printf("DEBUG: domain blocked .\n");
 			int sendraw_ret = sendraw(packet , sendraw_mode);
+			if ( sendraw_ret != 0 ) {
+				fprintf(stderr, "ERROR: emerge in sendraw() !!! (line=%d) \n", __LINE__);
+			}
 		} else { 
 			printf("DEBUG: domain allowed .\n");		
 		} // end if cmp_ret .
@@ -446,12 +390,12 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
 		sprintf(query_str , "INSERT INTO tb_packet_log ( src_ip , src_port , dst_ip , dst_port , "
 									" domain , result ) VALUES "
 					"( '%s' , %u , '%s' , %u , '%s' , %d )" ,
-			IPbuffer_str , 	// src_ip .
+			IPbuffer_str , 		// src_ip .
 			tcp_src_port	,	// src_port .
-			IPbuffer2_str ,	// dst_ip .
-			tcp_dst_port ,	// dst_port .
+			IPbuffer2_str ,		// dst_ip .
+			tcp_dst_port ,		// dst_port .
 			domain_str ,		// domain .
-			cmp_ret		// result .
+			cmp_ret				// result .
 			 );
 	
 		query_stat = mysql_query( connection , query_str );
@@ -459,9 +403,8 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
 			fprintf ( stderr , "ERROR: mariadb query error: %s\n", mysql_error(&conn) );
 			return;
 		} else {
-			fprintf ( stdout , "INFO: mariadb query OK\n" );
+			fprintf ( stdout , "INFO: mariadb save the query OK\n\n" );
 		}
-	
 		// end insert log to db .
 		
 		if ( check_domain_str != NULL ) {
@@ -481,72 +424,45 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
 
 unsigned short in_cksum(u_short *addr, int len)
 {
-        int         sum=0;
-        int         nleft=len;
-        u_short     *w=addr;
-        u_short     answer=0;
+        int         sum = 0;
+        int         nleft = len;
+        u_short     *w = addr;
+        u_short     answer = 1;		// return for checksum .
+		u_short 	result = 0;		// check for integrity .
+		
         while (nleft > 1){
             sum += *w++;
-			// printf("nleft : %d \n", nleft);
             nleft -= 2;
         }
 
 		// printf("while sum : %u \n",sum);
 
         if (nleft == 1){
-            *(u_char *)(&answer) = *(u_char *)w ;
+            *( (u_char *)(&answer) ) = *(u_char *)w ;
             sum += answer;
         }
 
-		printf(" sum basic : %u \n", sum);
-		printf(" sum >> 16 : %u \n", sum >> 16 );
-		printf(" (sum >> 16) & 0xffff : %u \n", (sum >> 16) & 0xffff);
+		// printf(" sum basic : %u \n", sum);
+		// printf(" sum >> 16 : %u \n", sum >> 16 );
+		// printf(" (sum >> 16) & 0xffff : %u \n", (sum >> 16) & 0xffff);
 		// printf("sum >> 16 : %u \n", sum >> 16);
-        sum = (sum >> 16) + (sum & 0xffff);
-        sum += (sum >> 16);
 		
-		// printf("result sum : %u \n", sum);
-		// 1110010010110111
+        sum = (sum >> 16) + (sum & 0xffff); // hight bit(8 8=16) + low bit(ff ff) .
+        sum += (sum >> 16); 				// wrap around -> carry value is too add in sum .
+		// printf("final sum : %u \n", sum);
+		
         answer = ~sum;
 		// printf("answer : %u \n", answer);
-		// 0001101101001000
-		u_short temp = answer + sum  + 1;
+		
 		// printf("add : %u /n", temp);
-		if( temp == 0 ) {
-			return 0;
+		result = answer + sum  + 1;
+		if( result == 0 ) {
+			//	fprintf(stdout, "INFO: tcphdr in_cksum() success ! \n");
+			return answer;
 		} else {
+			fprintf(stderr, "ERROR :  tcphdr in_cksum() result is not integrity status !! \n");
 			return -1;
 		}
-	
-		/*
-		basic : 3407170
-
-		sum
-		0011 0011 	1111 1101 	0100 0010
-
-		sum >> 16
-		51
-
-
-
-			0011 0011 1111 1101 	0100 0010
-		&	1111 1111
-		----------------------------------------
-			0011 0011
-		sum value should prepare to overflow !!
-				
-		sum+=
-		51
-
-
-		sum : 0011 0011
-
-		answer : 1100 1100
-		
-		*/
-		
-		
-		
 }
 // end in_cksum function .
 
@@ -556,61 +472,66 @@ int sendraw( u_char* pre_packet, int mode)
 		const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
 
 		u_char packet[1600];
-        int raw_socket, recv_socket;
         int on=1, len ;
-        char recv_packet[100], compare[100];
         struct iphdr *iphdr;
         struct tcphdr *tcphdr;
         struct in_addr source_address, dest_address;
-        struct sockaddr_in address, target_addr;
         struct pseudohdr *pseudo_header;
         struct in_addr ip;
-        struct hostent *target;
+		struct sockaddr_in address, target_addr; // target_addr later
         int port;
-        int loop1=0;
-        int loop2=0;
         int pre_payload_size = 0 ;
 		u_char *payload = NULL ;
-		// int size_vlan = 0 ;
-		// int size_vlan_apply = 0 ;
 		int size_payload = 0 ;
         int post_payload_size = 0 ;
         int sendto_result = 0 ;
-	    int rc = 0 ;
-	    //struct ifreq ifr ;
-		char * if_bind ;
-		int if_bind_len = 0 ;
 		int setsockopt_result = 0 ;
 		int prt_sendto_payload = 0 ;
-		char* ipaddr_str_ptr ;
-
 		int warning_page = 1 ;
-		// int vlan_tag_disabled = 0 ;
-
-		int ret = 0 ;
+		int ret = 1 ;							
+		int raw_socket, recv_socket;			// recv_socket later .
+		
+		
+		// --------vlan--------
+		// int size_vlan = 0 ; 					// excepted because of i think that i don't need this yet .
+		// int size_vlan_apply = 0 ; 			// excepted because of i think that i don't need this yet .
+		// int vlan_tag_disabled = 0 ;			// excepted because of i think that i don't need this yet .
+		
+		// --------later--------
+		
+		// char recv_packet[100], compare[100]; // later .
+        // struct hostent *target; 				// later .
+		// int loop1=0; 						// later .
+        // int loop2=0; 						// later .
+		// int rc = 0 ; 						// later .
+		//struct ifreq ifr ; 					// IDK .
+		// char * if_bind ; 					// later .
+		// int if_bind_len = 0 ; 				// later .
+		// char* ipaddr_str_ptr ; 				// later .
+		
+		
 
 		#ifdef SUPPORT_OUTPUT
+		printf("\n");
 		print_chars('\t',6);
-		print_chars('\t',6);
-		printf( "\n[raw socket sendto]\t[start]\n\n" );
+		printf( "[raw socket sendto]\t[start]\n\n" );
 
-		// if (size_payload > 0 || 1) // origin
-		if (size_payload > 0 ) {
-			print_chars('\t',6);
-			printf("   pre_packet whole(L2-packet-data) (%d bytes only):\n", 100);
-			print_payload_right(pre_packet, 100);
-		}
+		// if (size_payload > 0 || 1) // origin .
+		print_chars('\t',6);
+		printf("   PRE_PACKET WHOLE(L2_PACKET_DATA) (%d bytes only):\n", 100);
+		print_payload_right(pre_packet, 100);
+		printf("\n");
 		
-		//m-debug
-		//printf("DEBUG: (u_char*)packet_dmp ( in sendraw func ) == 0x%p\n", pre_packet);
 		#endif
 
         for( port=80; port<81; port++ ) {
-			#ifdef SUPPORT_OUTPUT
-			print_chars('\t',6);
-			printf("onetime\n");
-			#endif
-			// raw socket 생성
+			// #ifdef SUPPORT_OUTPUT
+			// print_chars('\t',6);
+			// printf("onetime\n");
+			// printf(" Port : %d \n ", port);
+			// #endif
+			
+			// create raw socket
 			raw_socket = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 			if ( raw_socket < 0 ) {
 				print_chars('\t',6);
@@ -618,10 +539,12 @@ int sendraw( u_char* pre_packet, int mode)
 				fprintf(stderr,"Error in socket() creation - %s\n", strerror(errno));
 				return -2;
 			}
-
-			setsockopt( raw_socket, IPPROTO_IP, IP_HDRINCL, (char *)&on, sizeof(on));
+		
+			// IP_HDRINCL option: include IP_Header .
+			setsockopt( raw_socket, IPPROTO_IP, IP_HDRINCL, (char *)&on, sizeof(on)); 
 
 			if ( if_bind_global != NULL ) {
+				// i think that ifreq will be use later ( SO_BINDTODEVICE ) .
 				setsockopt_result = setsockopt( raw_socket, SOL_SOCKET, SO_BINDTODEVICE, if_bind_global, if_bind_global_len );
 
 				if( setsockopt_result == -1 ) {
@@ -635,256 +558,235 @@ int sendraw( u_char* pre_packet, int mode)
 					fprintf(stdout,"OK: setsockopt(%s)(%d) - %s\n", if_bind_global, setsockopt_result, strerror(errno));
 				}
 				#endif
-
 			}
 			
+			// ethernet setting in pre_packet without vlan
 			ethernet = (struct sniff_ethernet*)(pre_packet);
 			if (ethernet->ether_type == (unsigned short)*(unsigned short*)&"\x08\x00" ) {
 				#ifdef SUPPORT_OUTPUT
 				print_chars('\t',6);
-				printf("normal packet\n");
+				printf("NORMAL PACKET");
 				#endif
 			} else {
-				fprintf(stderr,"NOTICE: ether_type diagnostics failed .......... \n");
+				fprintf(stderr,"NOTICE: ether_type is not IPv4, so you prepare other ether_types .......... \n");
 			}
 
-				// TCP, IP reset header without vlan
-                iphdr = (struct iphdr *)(packet) ;
-                memset( iphdr, 0, 20 );
-                tcphdr = (struct tcphdr *)(packet + 20);
-                memset( tcphdr, 0, 20 );
+			// TCP, IP reset header without vlan
+			iphdr = (struct iphdr *)(packet) ;
+			memset( iphdr, 0, 20 );
+			tcphdr = (struct tcphdr *)(packet + 20);
+			memset( tcphdr, 0, 20 );
 
-				source_address.s_addr = 
-				((struct iphdr *)(pre_packet + 14))->daddr ;
-				// twist s and d address
-				dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;		// for return response
-				iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;
-				int pre_tcp_header_size = 0;
-				char pre_tcp_header_size_char = 0x0;
-				pre_tcp_header_size = ((struct tcphdr *)(pre_packet + 14 + 20))->doff ;
-				pre_payload_size = ntohs( ((struct iphdr *)(pre_packet + 14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
+			// twist s and d address
+			source_address.s_addr = ((struct iphdr *)(pre_packet + 14))->daddr ;
+			dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;		// for return response
+			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;
+			
+			int pre_tcp_header_size = 0;
+			// char pre_tcp_header_size_char = 0x0; 	// Later
+			pre_tcp_header_size = ((struct tcphdr *)(pre_packet + 14 + 20))->doff ;
+			pre_payload_size = ntohs( ((struct iphdr *)(pre_packet + 14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
 
-				tcphdr->source = ((struct tcphdr *)(pre_packet + 14 + 20))->dest ;		// twist s and d port
-				tcphdr->dest = ((struct tcphdr *)(pre_packet + 14 + 20))->source ;		// for return response
-				tcphdr->seq = ((struct tcphdr *)(pre_packet + 14 + 20))->ack_seq ;
-				tcphdr->ack_seq = ((struct tcphdr *)(pre_packet + 14 + 20))->seq  + htonl(pre_payload_size - 20)  ;
-				tcphdr->window = ((struct tcphdr *)(pre_packet + 14 + 20))->window ;
+			// TCP header setting
+			tcphdr->source = ((struct tcphdr *)(pre_packet + 14 + 20))->dest ;		// twist s and d port
+			tcphdr->dest = ((struct tcphdr *)(pre_packet + 14 + 20))->source ;		// for return response
+			tcphdr->seq = ((struct tcphdr *)(pre_packet + 14 + 20))->ack_seq ;
+			tcphdr->ack_seq = ((struct tcphdr *)(pre_packet + 14 + 20))->seq  + htonl(pre_payload_size - 20)  ;
+			tcphdr->window = ((struct tcphdr *)(pre_packet + 14 + 20))->window ;
+			tcphdr->doff = 5;
+			tcphdr->ack = 1;
+			tcphdr->psh = 1;
+			tcphdr->fin = 1;
+			
+			// created pseudo_header for calculate TCP checksum ( total = 12bytes )
+			pseudo_header = (struct pseudohdr *)((char*)tcphdr-sizeof(struct pseudohdr));
+			pseudo_header->saddr = source_address.s_addr; // 2bytes
+			pseudo_header->daddr = dest_address.s_addr; // 2bytes
+			pseudo_header->useless = (u_int8_t) 0; // origin name: reserved , 1btyes
+			pseudo_header->protocol = IPPROTO_TCP; // 1btyes
+			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size); // 2bytes
 
-
-                tcphdr->doff = 5;
-
-                tcphdr->ack = 1;
-                tcphdr->psh = 1;
-
-                tcphdr->fin = 1;
-                // 가상 헤더 생성.
-                pseudo_header = (struct pseudohdr *)((char*)tcphdr-sizeof(struct pseudohdr));
-                pseudo_header->saddr = source_address.s_addr;
-                pseudo_header->daddr = dest_address.s_addr;
-                pseudo_header->useless = (u_int8_t) 0;
-                pseudo_header->protocol = IPPROTO_TCP;
-                pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
-
-
-				// printf(" pre_packet : %d \n", sizeof(*pre_packet));
-				// printf(" size : %d \n", pre_payload_size);
-				// printf(" post_size : %d \n", ntohs( ((struct iphdr *)(pre_packet + 14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) );
+			char *fake_packet = 
+						"HTTP/1.1 200 OK\x0d\x0a"
+						"Content-Length: 230\x0d\x0a"
+						"Content-Type: text/html"
+						"\x0d\x0a\x0d\x0a"
+						"<html>\r\n"
+						"<head>\r\n"
+						"<meta charset=\"UTF-8\">\r\n"
+						"<title>\r\n"
+						"CroCheck - WARNING - PAGE\r\n"
+						"SITE BLOCKED - WARNING - \r\n"
+						"</title>\r\n"
+						"</head>\r\n"
+						"<body>\r\n"
+						"<center>\r\n"
+						"<img   src=\"http://127.0.0.1:3000/warning.jpg\" alter=\"*WARNING*\">\r\n"
+						"<h1>SITE BLOCKED</h1>\r\n"
+						"</center>\r\n"
+						"</body>\r\n"
+						"</html>\r\n"
+						;
+			
+			post_payload_size = strlen(fake_packet);
+			// printf("size_temp : %ld \n", post_payload_size);
+			
+			// choose output content
+			warning_page = 5; // for test redirecting
+			if ( warning_page == 5 ){
+				memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
 				
-				// printf("payload : %d \n", size_payload = ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 ));
-				
-				char *temp = "HTTP/1.1 200 OK\x0d\x0a"
-							"Content-Length: 230\x0d\x0a"
-							"Content-Type: text/html"
-							"\x0d\x0a\x0d\x0a"
-							"<html>\r\n"
-							"<head>\r\n"
-							"<meta charset=\"UTF-8\">\r\n"
-							"<title>\r\n"
-							"CroCheck - WARNING - PAGE\r\n"
-        						"SITE BLOCKED - WARNING - \r\n"
-							"</title>\r\n"
-							"</head>\r\n"
-							"<body>\r\n"
-							"<center>\r\n"
-		"<img   src=\"http://127.0.0.1:3000/warning.jpg\" alter=\"*WARNING*\">\r\n"
-        "<h1>SITE BLOCKED</h1>\r\n"
-							"</center>\r\n"
-							"</body>\r\n"
-							"</html>\r\n";
-				
-				post_payload_size = strlen(temp);
-				// printf("size_temp : %ld \n", post_payload_size);
-				
-				
-				// choose output content
-				warning_page = 5;
-				if ( warning_page == 5 ){
-					// write post_payload ( redirecting data 2 )
+				// test as hardcoding
+				// post_payload_size = 230 + 65  ;   // Content-Length: header is changed so post_payload_size is increased.
+			}
+			
+			// renewal after post_payload_size for calculate TCP checksum
+			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
 
-					// post_payload_size = 230 + 65  ;   // Content-Length: header is changed so post_payload_size is increased.
+			// calculate TCP header checksum
+			tcphdr->check = in_cksum( (u_short *)pseudo_header,
+							sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);
+			
+			// line
+			print_chars('\t',6);
+			
+			// IP header setting
+			iphdr->version = 4;
+			iphdr->ihl = 5;
+			iphdr->protocol = IPPROTO_TCP;
+			iphdr->tot_len = htons(40 + post_payload_size);
+			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id + htons(1);
+			
+			// 0x40 -> don't use flag
+			memset( (char*)iphdr + 6 ,  0x40  , 1 );
+			iphdr->ttl = 60;
+			iphdr->saddr = source_address.s_addr;
+			iphdr->daddr = dest_address.s_addr;
+			
+			// calculate IP header checksum
+			iphdr->check = in_cksum( (u_short *)iphdr, sizeof(struct iphdr));
+			
+			// for sendto
+			address.sin_family = AF_INET;
+			address.sin_port = tcphdr->dest ;
+			address.sin_addr.s_addr = dest_address.s_addr;
 
-                    //memcpy ( (char*)packet + 40, "HTTP/1.1 200 OK" + 0x0d0a + "Content-Length: 1" + 0x0d0a + "Content-Type: text/plain" + 0x0d0a0d0a + "a" , post_payload_size ) ;
-					memcpy ( (char*)packet + 40, temp , post_payload_size ) ;
-                }
-				pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
+			prt_sendto_payload = 0;
+			#ifdef SUPPORT_OUTPUT
+			prt_sendto_payload = 1 ;
+			#endif
 
-                tcphdr->check = in_cksum( (u_short *)pseudo_header,
-                                sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);
-				// printf("tcp check : %u \n", tcphdr->check);
+			if( prt_sendto_payload == 1 ) {
+
+				printf("\n\n");
 				print_chars('\t',6);
-				if(tcphdr->check == 0 ) {
-				//	fprintf(stdout, "INFO: tcphdr in_cksum() success ! \n");
-				} else {
-					fprintf(stderr, "ERROR :  tcphdr in_cksum() result is not zero \n");
-				}
-				
-                iphdr->version = 4;
-                iphdr->ihl = 5;
-                iphdr->protocol = IPPROTO_TCP;
-                //iphdr->tot_len = 40;
-                iphdr->tot_len = htons(40 + post_payload_size);
+				printf("----------------sendto Packet data----------------\n");
 
-
-				// m-debug
-				// #ifdef SUPPORT_OUTPUT
-				// printf("DEBUG: iphdr->tot_len = %d\n", ntohs(iphdr->tot_len));
-				// #endif
-
-				iphdr->id = ((struct iphdr *)(pre_packet + 14))->id + htons(1);
-				
-				memset( (char*)iphdr + 6 ,  0x40  , 1 );
-				
-                iphdr->ttl = 60;
-                iphdr->saddr = source_address.s_addr;
-                iphdr->daddr = dest_address.s_addr;
-                // IP 체크섬 계산.
-                iphdr->check = in_cksum( (u_short *)iphdr, sizeof(struct iphdr));
 				print_chars('\t',6);
-				if(iphdr->check == 0 ) {
-				//	fprintf(stdout, "INFO: iphdr in_cksum() success ! \n");
+				printf("    From: %s(%hhu.%hhu.%hhu.%hhu)\n",
+								inet_ntoa( source_address ),
+								((char*)&source_address.s_addr)[0],
+								((char*)&source_address.s_addr)[1],
+								((char*)&source_address.s_addr)[2],
+								((char*)&source_address.s_addr)[3]
+						);
+				print_chars('\t',6);
+				printf("      To: %s(%hhu.%hhu.%hhu.%hhu)\n",
+								inet_ntoa( dest_address ),
+								((char*)&dest_address.s_addr)[0],
+								((char*)&dest_address.s_addr)[1],
+								((char*)&dest_address.s_addr)[2],
+								((char*)&dest_address.s_addr)[3]
+						);
+
+				switch(iphdr->protocol) {
+					case IPPROTO_TCP:
+						print_chars('\t',6);
+						printf("Protocol: TCP\n");
+						break;
+					case IPPROTO_UDP:
+						print_chars('\t',6);
+						printf("Protocol: UDP\n");
+						return -1;
+					case IPPROTO_ICMP:
+						print_chars('\t',6);
+						printf("Protocol: ICMP\n");
+						return -1;
+					case IPPROTO_IP:
+						print_chars('\t',6);
+						printf("Protocol: IP\n");
+						return -1;
+					case IPPROTO_IGMP:
+						print_chars('\t',6);
+						printf("Protocol: IGMP\n");
+						return -1;
+					default:
+						print_chars('\t',6);
+						printf("Protocol: unknown\n");
+						return -2;
+				}
+
+				print_chars('\t',6);
+				printf("Src port: %d\n", ntohs(tcphdr->source));
+				print_chars('\t',6);
+				printf("Dst port: %d\n", ntohs(tcphdr->dest));
+
+				payload = (u_char *)(packet + sizeof(struct iphdr) + tcphdr->doff * 4 );
+
+				size_payload = ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 );
+				
+				if (size_payload > 0) {
+					printf("\n");
+					print_chars('\t',6);
+					printf("   PACKET-HEADER(try1) (%d bytes):\n", ntohs(iphdr->tot_len) - size_payload); // 40
+					print_payload_right((const u_char*)&packet, ntohs(iphdr->tot_len) - size_payload);
+				}
+
+				if (size_payload > 0) {
+					printf("\n");
+					print_chars('\t',6);
+					printf("   Payload (%d bytes):\n", size_payload);
+					print_payload_right(payload, size_payload);
+				}
+			} // end -- if -- prt_sendto_payload = 1 ;
+			
+			if ( mode == 1 ) {
+				sendto_result = sendto( raw_socket, &packet, ntohs(iphdr->tot_len), 0x0,
+										(struct sockaddr *)&address, sizeof(address) ) ;
+				if ( sendto_result != ntohs(iphdr->tot_len) ) {
+					fprintf ( stderr,"ERROR: sendto() - %s\n", strerror(errno) ) ;
+					ret = -2;
 				} else {
-					fprintf(stderr, "ERROR :  iphdr in_cksum() result is not zero \n");
+					// fprintf ( stdout,"INFO: sendto() success ! \n");
+					ret = 0;
 				}
+			} // end if(mode)
 
 
-                address.sin_family = AF_INET;
-
-				address.sin_port = tcphdr->dest ;
-				address.sin_addr.s_addr = dest_address.s_addr;
-
-				prt_sendto_payload = 0;
-				#ifdef SUPPORT_OUTPUT
-				prt_sendto_payload = 1 ;
-				#endif
-
-				if( prt_sendto_payload == 1 ) {
-
-					print_chars('\t',6);
-					printf("sendto Packet data :\n");
-
-					print_chars('\t',6);
-					printf("       From: %s(%hhu.%hhu.%hhu.%hhu)\n",
-									inet_ntoa( source_address ),
-									((char*)&source_address.s_addr)[0],
-									((char*)&source_address.s_addr)[1],
-									((char*)&source_address.s_addr)[2],
-									((char*)&source_address.s_addr)[3]
-							);
-					print_chars('\t',6);
-					printf("         To: %s(%hhu.%hhu.%hhu.%hhu)\n",
-									inet_ntoa( dest_address ),
-									((char*)&dest_address.s_addr)[0],
-									((char*)&dest_address.s_addr)[1],
-									((char*)&dest_address.s_addr)[2],
-									((char*)&dest_address.s_addr)[3]
-							);
-
-					switch(iphdr->protocol) {
-						case IPPROTO_TCP:
-							print_chars('\t',6);
-							printf("   Protocol: TCP\n");
-							break;
-						case IPPROTO_UDP:
-							print_chars('\t',6);
-							printf("   Protocol: UDP\n");
-							return -1;
-						case IPPROTO_ICMP:
-							print_chars('\t',6);
-							printf("   Protocol: ICMP\n");
-							return -1;
-						case IPPROTO_IP:
-							print_chars('\t',6);
-							printf("   Protocol: IP\n");
-							return -1;
-						case IPPROTO_IGMP:
-							print_chars('\t',6);
-							printf("   Protocol: IGMP\n");
-							return -1;
-						default:
-							print_chars('\t',6);
-							printf("   Protocol: unknown\n");
-							//free(packet_dmp);
-							return -2;
-					}
-
-					print_chars('\t',6);
-					printf("   Src port: %d\n", ntohs(tcphdr->source));
-					print_chars('\t',6);
-					printf("   Dst port: %d\n", ntohs(tcphdr->dest));
-
-					payload = (u_char *)(packet + sizeof(struct iphdr) + tcphdr->doff * 4 );
-
-					size_payload = ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 );
-					
-					if (size_payload > 0) {
-						print_chars('\t',6);
-						printf("   PACKET-HEADER(try1) (%d bytes):\n", ntohs(iphdr->tot_len) - size_payload); // 40
-						//print_payload(payload, size_payload);
-						print_payload_right((const u_char*)&packet, ntohs(iphdr->tot_len) - size_payload);
-					}
-
-					if (size_payload > 0) {
-						print_chars('\t',6);
-						printf("   Payload (%d bytes):\n", size_payload);
-						//print_payload(payload, size_payload);
-						print_payload_right(payload, size_payload);
-					}
-				} // end -- if -- prt_sendto_payload = 1 ;
-				if ( mode == 1 ) {
-                    sendto_result = sendto( raw_socket, &packet, ntohs(iphdr->tot_len), 0x0,
-                                            (struct sockaddr *)&address, sizeof(address) ) ;
-					if ( sendto_result != ntohs(iphdr->tot_len) ) {
-						fprintf ( stderr,"ERROR: sendto() - %s\n", strerror(errno) ) ;
-						ret = -10 ;
-					} else {
-						ret = 1 ;
-					}
-		        } // end if(mode)
-                //} // end for loop
-
-
-
-				if ( (unsigned int)iphdr->daddr == (unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" ) {
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf("##########################################################################################################################\n");
-					printf( "address1 == %hhu.%hhu.%hhu.%hhu\taddress2 == %X\taddress3 == %X\n",
-							*(char*)((char*)&source_address.s_addr + 0),*(char*)((char*)&source_address.s_addr + 1),
-							*(char*)((char*)&source_address.s_addr + 2),*(char*)((char*)&source_address.s_addr + 3),
-							source_address.s_addr,	(unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" );
-				}
-                close( raw_socket );
-                
+			if ( (unsigned int)iphdr->daddr == (unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" ) {
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf( "address1 == %hhu.%hhu.%hhu.%hhu\taddress2 == %X\taddress3 == %X\n",
+						*(char*)((char*)&source_address.s_addr + 0),*(char*)((char*)&source_address.s_addr + 1),
+						*(char*)((char*)&source_address.s_addr + 2),*(char*)((char*)&source_address.s_addr + 3),
+						source_address.s_addr,	(unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" );
+			}
+			
+			close( raw_socket );
         } // end for loop
+		
 		#ifdef SUPPORT_OUTPUT
-        printf( "\n[sendraw] end .. \n\n" );
+		printf("\n");
+		print_chars('\t',6);
+        printf( "[sendraw] end . \n\n" );
 		#endif
-		//return 0;
-		return ret ;
+		
+		return ret; // 0 -> normal exit
 }
 // end sendraw function .
 
@@ -949,7 +851,6 @@ print_hex_ascii_line(const u_char *payload, int len, int offset)
 void
 print_hex_ascii_line_right(const u_char *payload, int len, int offset)
 {
-
 	int i;
 	int gap;
 	const u_char *ch;
@@ -1004,52 +905,6 @@ print_hex_ascii_line_right(const u_char *payload, int len, int offset)
  * print packet payload data (avoid printing binary data)
  */
 void
-print_payload(const u_char *payload, int len)
-{
-
-	int len_rem = len;
-	int line_width = 16;			/* number of bytes per line */
-	int line_len;
-	int offset = 0;					/* zero-based offset counter */
-	const u_char *ch = payload;
-
-	if (len <= 0)
-		return;
-
-	/* data fits on one line */
-	if (len <= line_width) {
-		print_hex_ascii_line(ch, len, offset);
-		return;
-	}
-
-	/* data spans multiple lines */
-	for ( ;; ) {
-		/* compute current line length */
-		line_len = line_width % len_rem;
-		/* print line */
-		print_hex_ascii_line(ch, line_len, offset);
-		/* compute total remaining */
-		len_rem = len_rem - line_len;
-		/* shift pointer to remaining bytes to print */
-		ch = ch + line_len;
-		/* add offset */
-		offset = offset + line_width;
-		/* check if we have line width chars or less */
-		if (len_rem <= line_width) {
-			/* print last line and get out */
-			print_hex_ascii_line(ch, len_rem, offset);
-			break;
-		}
-	}
-
-	return;
-}
-
-
-/*
- * print packet payload data (avoid printing binary data)
- */
-void
 print_payload_right(const u_char *payload, int len)
 {
 
@@ -1094,7 +949,6 @@ print_payload_right(const u_char *payload, int len)
 			break;
 		}
 	}
-
     return;
 }
 
