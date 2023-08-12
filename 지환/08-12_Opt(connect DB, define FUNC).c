@@ -281,7 +281,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		// print ehternet, ip, tcp, domain
 		print_info(ethernet, ip, tcp, domain_str);
 	
-		// block_list : print, compare, block or allow
+		// block_list : print, compare(domain_str <-> block_list), block or allow
 		mysql_block_list(domain_str, packet);
 		
 		// INSERT to tb_packet_log
