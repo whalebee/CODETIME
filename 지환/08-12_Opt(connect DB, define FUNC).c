@@ -82,7 +82,6 @@ struct sniff_tcp {
 /*------------------global variables------------------*/
 // socket
 #define TO_MS 1000
-#define DOMAIN_BUF 1048576
 #define IP_SIZE 16
 #define IP_HDR_SIZE 20
 #define TCP_HDR_SIZE 20
@@ -100,9 +99,9 @@ MYSQL_ROW row;
 MYSQL_RES *res_block;
 MYSQL_ROW row_block;
 int cmp_ret = 1; // base: allow
-#define TMP_THUD 1024
+#define DOMAIN_BUF 1048576
 #define REC_DOM_MAX 20
-#define REC_DOM_LEN 1024
+#define REC_DOM_LEN 1048576
 
 // TCP Header checksum
 struct pseudohdr {
@@ -905,7 +904,7 @@ void mysql_insert(u_char* domain_str)
 
 void mysql_select_log()
 {
-	char query[TMP_THUD] = { 0x00 }; // TMP_THUD 1024
+	char query[DOMAIN_BUF] = { 0x00 }; // DOMAIN_BUF 1048576
 	sprintf(query, "SELECT * FROM tb_packet_log");
 	
 	res = mysql_perform_query(connection, query);
