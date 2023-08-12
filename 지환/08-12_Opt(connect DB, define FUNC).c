@@ -22,23 +22,10 @@
 
 #define SUPPORT_OUTPUT
 
-// global variables ...
-//char if_bind_global[] = "enp0s3" ;
-char if_bind_global[] = "lo" ;
-
-//int if_bind_global_len = 6 ;
-int if_bind_global_len = 2 ;
-
-int sendraw_mode = 1;
-
 // for mariadb .
 //#include <mariadb/my_global.h>
 #include <mariadb/mysql.h>
 
-// for mysql .
-//#include <mysql/mysql.h>
-
-/* Ethernet addresses are 6 bytes */
 #define ETHER_ADDR_LEN	6
 
 /* Ethernet header */
@@ -92,13 +79,32 @@ struct sniff_tcp {
 	u_short th_urp;		/* urgent pointer */
 };
 
-// global variables .
-int g_ret = 0 ;
+/*------------------global variables------------------*/
+// socket
+#define TO_MS 1000
+#define DOMAIN_BUF 1048576
+#define IP_SIZE 16
+#define IP_HDR_SIZE 20
+#define TCP_HDR_SIZE 20
+
+// sendraw
+char if_bind_global[] = "lo" ;
+int if_bind_global_len = 2 ;
+int sendraw_mode = 1;
+
+// DB
 MYSQL *connection = NULL;
 MYSQL conn;
-MYSQL_RES *sql_result;
-MYSQL_ROW sql_row;
+MYSQL_RES *res;
+MYSQL_ROW row;
+MYSQL_RES *res_block;
+MYSQL_ROW row_block;
+int cmp_ret = 1; // base: allow
+#define TMP_THUD 1024
+#define REC_DOM_MAX 20
+#define REC_DOM_LEN 1024
 
+// TCP Header checksum
 struct pseudohdr {
         u_int32_t   saddr;
         u_int32_t   daddr;
@@ -107,29 +113,41 @@ struct pseudohdr {
         u_int16_t   tcplength;
 };
 
-//int gbl_debug = 0;
-int gbl_debug = 1;
+// Protocol Info
+char IPbuffer_str[IP_SIZE]; 		// IP_SIZE 16
+char IPbuffer2_str[IP_SIZE]; 		// IP_SIZE 16
+unsigned short tcp_src_port = 0;
+unsigned short tcp_dst_port = 0;
 
-//gbl_debug = 1;
-//gbl_debug = 2;
+// int gbl_debug = 1; 	// later .
+// int g_ret = 0; 		// later .
 
+
+
+/*------------------function------------------*/
+// got_packet
+void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
+void print_info(const struct sniff_ethernet *ethernet, 
+				const struct sniff_ip *ip, 
+				const struct sniff_tcp *tcp,
+				u_char* domain_str);
+
+// DB
+MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query);
+void mysql_insert(u_char* domain_str);
+void mysql_select_log();
+void mysql_block_list(u_char* domain_str, const u_char *packet);
+
+// sendraw
+int sendraw( u_char* pre_packet , int mode ) ;
 int print_chars(char print_char, int nums);
-
-void
-print_payload_right(const u_char *payload, int len);
-
-void
-print_hex_ascii_line(const u_char *payload, int len, int offset);
-
-void
-print_hex_ascii_line_right(const u_char *payload, int len, int offset);
-
+void print_payload_right(const u_char *payload, int len);
+void print_hex_ascii_line(const u_char *payload, int len, int offset);
+void print_hex_ascii_line_right(const u_char *payload, int len, int offset);
 unsigned short in_cksum ( u_short *addr , int len );
 
-int sendraw( u_char* pre_packet , int mode ) ;
 
-void got_packet(u_char *args, const struct pcap_pkthdr *header,
-    const u_char *packet);
+
 
 ///////////////////////////////////////
 //                                   //
@@ -138,15 +156,15 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header,
 ///////////////////////////////////////
 int main(int argc, char *argv[])
 {
-	pcap_t *handle;			/* Session handle */
-	char *dev;			/* The device to sniff on */
+	pcap_t *handle;					/* Session handle */
+	char *dev;						/* The device to sniff on */
 	char errbuf[PCAP_ERRBUF_SIZE];	/* Error string */
-	struct bpf_program fp;		/* The compiled filter */
+	struct bpf_program fp;			/* The compiled filter */
 	char filter_exp[] = "port 80";	/* The filter expression */
-	bpf_u_int32 mask;		/* Our netmask */
-	bpf_u_int32 net;		/* Our IP */
-	struct pcap_pkthdr header;	/* The header that pcap gives us */
-	const u_char *packet;		/* The actual packet */
+	bpf_u_int32 mask;				/* Our netmask */
+	bpf_u_int32 net;				/* Our IP */
+	struct pcap_pkthdr header;		/* The header that pcap gives us */
+	const u_char *packet;			/* The actual packet */
 	struct pcap_if *devs;
 	int result = 0 ;
 	
@@ -162,7 +180,7 @@ int main(int argc, char *argv[])
 		mask = 0;
 	}
 	/* Open the session in promiscuous mode */
-	handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
+	handle = pcap_open_live(dev, BUFSIZ, 1, TO_MS, errbuf); 	// TO_MS 1000
 	if (handle == NULL) {
 		fprintf(stderr, "Couldn't open device %s: %s\n", dev, errbuf);
 		return(2);
@@ -209,216 +227,72 @@ int main(int argc, char *argv[])
 	return(0);
 } // end of main function.
 
-void got_packet(u_char *args, const struct pcap_pkthdr *header,
-    const u_char *packet) {
-
-	/* ethernet headers are always exactly 14 bytes */
-	#define SIZE_ETHERNET 14
-
-	u_int size_ip;
-	u_int size_tcp;
-
+void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet) 
+{
+	/*------------------ethernet------------------*/
+	#define SIZE_ETHERNET 14 /* ethernet headers are always exactly 14 bytes */
 	const struct sniff_ethernet *ethernet; /* The ethernet header */
-	const struct sniff_ip *ip; /* The IP header */
-	const struct sniff_tcp *tcp; /* The TCP header */
-	const char *payload; /* Packet payload */
-
-	ethernet = (struct sniff_ethernet*)(packet);
+	ethernet = (struct sniff_ethernet*)(packet); // ethernet header
+	
+	/*---------------------IP---------------------*/
+	u_int size_ip;
+	const struct sniff_ip *ip;
 	ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
 	size_ip = IP_HL(ip)*4;
-	if (size_ip < 20) {
+	if (size_ip < IP_HDR_SIZE)	// IP_HDR_SIZE 20
+	{											
 		printf("   * Invalid IP header length: %u bytes\n", size_ip);
 		return;
 	}
+		
+	/*--------------------PORT--------------------*/
+	u_int size_tcp;
+	const struct sniff_tcp *tcp;
 	tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip);
 	size_tcp = TH_OFF(tcp)*4;
-	if (size_tcp < 20) {
+	if (size_tcp < TCP_HDR_SIZE) // TCP_HDR_SIZE 20
+	{
 		printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
 		return;
 	}
+		
+	/*-------------------payload------------------*/
+	const char *payload; /* Packet payload */
+	unsigned short payload_len = 0; // payload
 	payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
+	payload_len = ntohs(ip->ip_len) - size_ip - size_tcp;
 	
-	unsigned short int  payload_len = 0;
-	payload_len = ntohs(ip->ip_len) - size_ip - size_tcp ;
-	// printf("INFO: payload_len = %u .\n", payload_len);
-
-	//printf("Jacked a packet with "
-	//		"length of [%d]\n", header->len);
-	
-	// print Ethernet address .
-	if ( 0 ) {
-	printf("DATA: dest MAC : %02x:%02x:%02x:%02x:%02x:%02x\n" ,
-				ethernet->ether_dhost[0],
-				ethernet->ether_dhost[1],
-				ethernet->ether_dhost[2],
-				ethernet->ether_dhost[3],
-				ethernet->ether_dhost[4],
-				ethernet->ether_dhost[5] 
-		);
-	
-	printf("DATA: src MAC : %02x:%02x:%02x:%02x:%02x:%02x\n" ,
-				ethernet->ether_shost[0],
-				ethernet->ether_shost[1],
-				ethernet->ether_shost[2],
-				ethernet->ether_shost[3],
-				ethernet->ether_shost[4],
-				ethernet->ether_shost[5] 
-		);
-	}
-	
-	char *IPbuffer, *IPbuffer2;
-	char IPbuffer_str[16];
-	char IPbuffer2_str[16];
-	
-	IPbuffer = inet_ntoa(ip->ip_src);
-	strcpy(IPbuffer_str, IPbuffer);
-
-	IPbuffer2 = inet_ntoa(ip->ip_dst);
-	strcpy(IPbuffer2_str, IPbuffer2);
-		
-	//printf("DATA: IP src : %s\n", IPbuffer_str);
-	//printf("DATA: IP dst : %s\n", IPbuffer2_str);
-	
-	// print tcp port number .
-	unsigned short tcp_src_port = 0 ;
-	unsigned short tcp_dst_port = 0 ;
-	
-	tcp_src_port = ntohs(tcp->th_sport);
-	tcp_dst_port = ntohs(tcp->th_dport);
-	
-	//printf("DATA : src Port : %u\n" , tcp_src_port );
-	//printf("DATA : dst Port : %u\n" , tcp_dst_port );
-	
-	u_char *domain = NULL;
-	u_char *domain_end = NULL;
-	u_char domain_str[256] = { 0x00 };
-	
-	int domain_len = 0 ;
-	
-	domain = strstr(payload , "Host: ");
-	if ( domain != NULL ) {
-		domain_end = strstr(domain , "\x0d\x0a") ;
-		if ( domain_end != NULL ) {
-			// print ip , port info .
-			//printf("DATA: IP src : %s\n", IPbuffer_str);
-			//printf("DATA: IP dst : %s\n", IPbuffer2_str);
-			//printf("DATA : src Port : %u\n" , tcp_src_port );
-			//printf("DATA : dst Port : %u\n" , tcp_dst_port );
-			
-			// print domain name .
-			domain_len = domain_end - domain - 6 ;
-			strncpy(domain_str , domain + 6 , domain_len );
-			//printf("INFO: Domain = %s .\n" , domain_str ) ;
+	/*-------------------domain-------------------*/
+	u_char* domain = NULL;
+	u_char* domain_end = NULL;
+	u_char domain_str[DOMAIN_BUF] = {0x00};		// DOMAIN_BUF 1048576
+	int domain_len = 0;
+	domain = strstr(payload, "Host: ");
+	if(domain != NULL){
+		domain_end = strstr(domain, "\x0d\x0a");
+		if(domain_end != NULL){
+			domain_len = domain_end - domain - 6;
+			strncpy(domain_str, domain + 6, domain_len);
 		}
-	} else {
-		//printf("INFO: Host string not found \n");
 	}
-	
-	struct check_domain_struct {
-		char domain[256];
-	};
-	
-	// define variable with malloc .
-	int check_domain_str_count = 10000 ;
-	struct check_domain_struct *check_domain_str = NULL;
-	check_domain_str = malloc ( 
-				sizeof( struct check_domain_struct ) * 
-					check_domain_str_count
-			       );
-	if ( check_domain_str == NULL ) {
-		fprintf(stderr, "ERROR: malloc fail (line=%d) !!!\n",
-				__LINE__);
-	} else {
-		//fprintf(stdout, "INFO: malloc OK (line=%d) !!!\n",
-		//		__LINE__);
-	}
-	
-	memset ( check_domain_str , 
-		0x00 , 
-		sizeof(struct check_domain_struct) * check_domain_str_count
-	);
-	
-	strcpy(check_domain_str[0].domain , "naver.com" );
-	strcpy(check_domain_str[1].domain , "kakao.com" );
-	strcpy(check_domain_str[2].domain , "mail.naver.com" );
-	
-	if ( domain_len ) {
-		int cmp_ret = 1;
-		
-		// for loop 1 .
-		for ( int i = 0 ; i < 100 ; i++ ) {
-			int str1_len = strlen ( check_domain_str[i].domain );
-			int str2_len = strlen ( domain_str );
-				
-			if ( str1_len != str2_len )
-				continue; // check next array value .
-		
-			cmp_ret = strcmp ( check_domain_str[i].domain ,  domain_str ) ;
-			printf("DEBUG: domain name check result : %d\n" , cmp_ret );
-			if ( cmp_ret == 0 ) {
-				break; // stop for loop 1 .
-			}
-			
-			// break if meet null data array .
-			if ( strlen(check_domain_str[i].domain) == 0 ) break; // stop for loop 1 .
-				
-		} // end for loop 1 .
-		
-		// print ip , port info .
-		printf("DATA: IP src : %s\n", IPbuffer_str);
-		printf("DATA: IP dst : %s\n", IPbuffer2_str);
-		printf("DATA : src Port : %u\n" , tcp_src_port );
-		printf("DATA : dst Port : %u\n" , tcp_dst_port );
-		
-		// print domain name .
-		printf("INFO: Domain = %s .\n" , domain_str ) ;
 
-		if ( cmp_ret == 0 ) {
-			printf("DEBUG: domain blocked .\n");
-			int sendraw_ret = sendraw(packet , sendraw_mode);
-			if ( sendraw_ret != 0 ) {
-				fprintf(stderr, "ERROR: emerge in sendraw() !!! (line=%d) \n", __LINE__);
-			}
-		} else { 
-			printf("DEBUG: domain allowed .\n");		
-		} // end if cmp_ret .
-	
-		// begin insert log to db .
-		int query_stat = 0;
-		char query_str[1048576] = { 0x00 };
-	
-		sprintf(query_str , "INSERT INTO tb_packet_log ( src_ip , src_port , dst_ip , dst_port , "
-									" domain , result ) VALUES "
-					"( '%s' , %u , '%s' , %u , '%s' , %d )" ,
-			IPbuffer_str , 		// src_ip .
-			tcp_src_port	,	// src_port .
-			IPbuffer2_str ,		// dst_ip .
-			tcp_dst_port ,		// dst_port .
-			domain_str ,		// domain .
-			cmp_ret				// result .
-			 );
-	
-		query_stat = mysql_query( connection , query_str );
-		if ( query_stat != 0 ) {
-			fprintf ( stderr , "ERROR: mariadb query error: %s\n", mysql_error(&conn) );
-			return;
-		} else {
-			fprintf ( stdout , "INFO: mariadb save the query OK\n\n" );
-		}
-		// end insert log to db .
+	/*-----------------print data-----------------*/
+	if(domain_len){
 		
-		if ( check_domain_str != NULL ) {
-			free(check_domain_str);
-			check_domain_str = NULL;
-		} else {
-			fprintf(stderr, "CRIT: check_domain_str"
-					" was already free (line=%d)\n",
-						__LINE__) ;
-		}
+		// print ehternet, ip, tcp, domain
+		print_info(ethernet, ip, tcp, domain_str);
 	
-	} // end if domain_len .
+		// block_list : print, compare, block or allow
+		mysql_block_list(domain_str, packet);
 		
-	//printf("\n");			
+		// INSERT to tb_packet_log
+		mysql_insert(domain_str);
+		
+		// SELECT tb_packet_log
+		mysql_select_log();
+		
+		fputc('\n',stdout);	
+	}	
 	
 } // end of got_packet function .
 
@@ -435,26 +309,16 @@ unsigned short in_cksum(u_short *addr, int len)
             nleft -= 2;
         }
 
-		// printf("while sum : %u \n",sum);
-
         if (nleft == 1){
             *( (u_char *)(&answer) ) = *(u_char *)w ;
             sum += answer;
         }
-
-		// printf(" sum basic : %u \n", sum);
-		// printf(" sum >> 16 : %u \n", sum >> 16 );
-		// printf(" (sum >> 16) & 0xffff : %u \n", (sum >> 16) & 0xffff);
-		// printf("sum >> 16 : %u \n", sum >> 16);
 		
         sum = (sum >> 16) + (sum & 0xffff); // hight bit(8 8=16) + low bit(ff ff) .
         sum += (sum >> 16); 				// wrap around -> carry value is too add in sum .
-		// printf("final sum : %u \n", sum);
 		
         answer = ~sum;
-		// printf("answer : %u \n", answer);
-		
-		// printf("add : %u /n", temp);
+
 		result = answer + sum  + 1;
 		if( result == 0 ) {
 			//	fprintf(stdout, "INFO: tcphdr in_cksum() success ! \n");
@@ -498,7 +362,6 @@ int sendraw( u_char* pre_packet, int mode)
 		// int vlan_tag_disabled = 0 ;			// excepted because of i think that i don't need this yet .
 		
 		// --------later--------
-		
 		// char recv_packet[100], compare[100]; // later .
         // struct hostent *target; 				// later .
 		// int loop1=0; 						// later .
@@ -525,12 +388,6 @@ int sendraw( u_char* pre_packet, int mode)
 		#endif
 
         for( port=80; port<81; port++ ) {
-			// #ifdef SUPPORT_OUTPUT
-			// print_chars('\t',6);
-			// printf("onetime\n");
-			// printf(" Port : %d \n ", port);
-			// #endif
-			
 			// create raw socket
 			raw_socket = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 			if ( raw_socket < 0 ) {
@@ -629,15 +486,11 @@ int sendraw( u_char* pre_packet, int mode)
 						;
 			
 			post_payload_size = strlen(fake_packet);
-			// printf("size_temp : %ld \n", post_payload_size);
 			
 			// choose output content
 			warning_page = 5; // for test redirecting
 			if ( warning_page == 5 ){
 				memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
-				
-				// test as hardcoding
-				// post_payload_size = 230 + 65  ;   // Content-Length: header is changed so post_payload_size is increased.
 			}
 			
 			// renewal after post_payload_size for calculate TCP checksum
@@ -952,3 +805,172 @@ print_payload_right(const u_char *payload, int len)
     return;
 }
 
+
+void mysql_block_list(u_char* domain_str, const u_char *packet) {
+	
+		// Receive tb_packet_block---------------------------------
+		res_block = mysql_perform_query(connection, "SELECT * FROM tb_packet_block");
+		char domain_arr[REC_DOM_MAX][REC_DOM_LEN] = { 0x00 }; // domain_arr array for print block_list
+		// REC_DOM_MAX 20
+		// REC_DOM_LEN 1024
+		int num = 0;
+
+		// print block_list
+		int cnt = 1;
+		printf("\n");
+		while( (row_block = mysql_fetch_row(res_block) ) != NULL){
+			printf("Mysql block_list in tb_packet_block [ %d ] \n", cnt++);
+			printf("src_ip: %20s | ", row_block[1]); 			// row_block[0] -> id
+			printf("src_port: %5s | \n", row_block[2]);
+			printf("dst_ip: %20s | ", row_block[3]);
+			printf("dst_port: %5s | \n", row_block[4]);
+			printf("Domain: %20s | ", row_block[5]);
+			strcpy( &domain_arr[num++][0], row_block[5]);		// string copy for compare
+			printf("created at: %s . \n\n\n", row_block[6]); 	// doesn't exist result in block_list
+		}
+		
+		printf("\n");
+
+
+		// compare---------------------------------
+		for(int i = 0; i < 100; i++ ) {
+
+			// if you knew str_len, you choice method like this
+			int str1_len = strlen( &domain_arr[i][0] ); // block list
+			int str2_len = strlen( domain_str );		// domain_string
+			
+			if( str1_len != str2_len ) {
+				continue; // move to next array .
+			}
+
+			cmp_ret = strcmp( &domain_arr[i][0], domain_str );
+			
+			// if each other string is same length but not same string, so break
+			if( cmp_ret < 0 ) break; 
+			printf("DEBUG: domain name check result : %d \n", cmp_ret);
+
+			if( cmp_ret == 0 )
+				break;
+			
+			// break if meet NULL data in array .
+			if( strlen( &domain_arr[0][i] ) == 0 ) 
+				break; 
+		} 
+
+		// block or allow
+		if( cmp_ret == 0 ) {
+			printf("DEBUG: main blocked . \n");
+			int sendraw_ret = sendraw(packet , sendraw_mode);
+			if ( sendraw_ret != 0 ) {
+				fprintf(stderr, "ERROR: emerge in sendraw() !!! (line=%d) \n", __LINE__);
+			}
+		} else {
+			printf("DEBUG: domain allowed . \n");
+		} // end if emp_ret .
+		
+		mysql_free_result(res_block);
+} // end of mysql_block_list() .
+
+MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
+ 
+    if(mysql_query(connection, sql_query)) {
+        printf("MYSQL query error : %s\n", mysql_error(connection));
+        exit(1);
+    }
+    return mysql_use_result(connection);
+} // end of mysql_perform_query() .
+
+void mysql_insert(u_char* domain_str)
+{
+	// INSERT
+	char query[DOMAIN_BUF] = { 0x00}; // DOMAIN_BUF 1048576
+	// query setting
+	sprintf(query,"INSERT INTO tb_packet_log ( src_ip , src_port , dst_ip , dst_port , domain , result )"
+				  "VALUES('%s', '%u', '%s' , '%u' , '%s' , '%d')",
+				  IPbuffer_str , 
+				  tcp_src_port , 
+				  IPbuffer2_str , 
+				  tcp_dst_port ,  
+				  domain_str , 
+				  cmp_ret
+				  );
+
+	if( mysql_query(connection, query) != 0 ) {
+		fprintf(stderr, "ERROR : mysql_query() is failed !!! \n");
+	} else {
+		printf("mysql_query() success :D \n");
+	}
+} // end of mysql_insert() .
+
+
+void mysql_select_log()
+{
+	char query[TMP_THUD] = { 0x00 }; // TMP_THUD 1024
+	sprintf(query, "SELECT * FROM tb_packet_log");
+	
+	res = mysql_perform_query(connection, query);
+
+	printf("\n");
+	int cnt = 1;
+	
+	while( (row = mysql_fetch_row(res) ) != NULL){
+		printf("Mysql contents in tb_packet_log [ %d ] \n", cnt++);
+		printf(" src_ip: %20s | ", row[1]); // row[0] -> id
+		printf(" src_port: %5s | \n", row[2]);
+		printf(" dst_ip: %20s | ", row[3]);
+		printf(" dst_port: %5s | \n", row[4]);
+		printf(" Domain: %20s | ", row[5]);
+		printf(" result: %7s | ", row[6]);
+		printf(" created at: %s . \n\n\n", row[7]);
+	}
+	printf("\n");
+	mysql_free_result(res);
+} // end of mysql_select_log() .
+
+
+void print_info(const struct sniff_ethernet *ethernet, 
+				const struct sniff_ip *ip, 
+				const struct sniff_tcp *tcp,
+				u_char* domain_str)
+{
+	// print ethernet
+	printf("DATA: dest MAC : %02x:%02x:%02x:%02x:%02x:%02x\n",
+		ethernet->ether_dhost[0],
+		ethernet->ether_dhost[1],
+		ethernet->ether_dhost[2],
+		ethernet->ether_dhost[3],
+		ethernet->ether_dhost[4],
+		ethernet->ether_dhost[5]
+	);
+	printf("DATA: src MAC : %02x:%02x:%02x:%02x:%02x:%02x\n",
+		ethernet->ether_shost[0],
+		ethernet->ether_shost[1],
+		ethernet->ether_shost[2],
+		ethernet->ether_shost[3],
+		ethernet->ether_shost[4],
+		ethernet->ether_shost[5]
+	);
+	
+	// print ip
+	char *IPbuffer, *IPbuffer2;
+
+	IPbuffer = inet_ntoa(ip->ip_src);
+	strcpy(IPbuffer_str, IPbuffer);
+	IPbuffer2 = inet_ntoa(ip->ip_dst);
+	strcpy(IPbuffer2_str, IPbuffer2);
+	
+	printf("DATA: IP src : %s\n",IPbuffer_str);
+	printf("DATA: IP dst : %s\n",IPbuffer2_str);
+	
+	
+	// print port
+	tcp_src_port = ntohs(tcp->th_sport);
+	tcp_dst_port = ntohs(tcp->th_dport);
+	
+	printf("DATA: src Port : %u\n", tcp_src_port);
+	printf("DATA: dst Port : %u\n", tcp_dst_port);	
+	
+	
+	// print domain
+	printf("INFO: Domain = %s\n", domain_str);
+}
