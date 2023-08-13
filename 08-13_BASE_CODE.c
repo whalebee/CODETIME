@@ -1,4 +1,3 @@
-//onemore onemore test
 #include <pcap.h>
 #include <stdio.h>
 #include <string.h>
@@ -88,9 +87,11 @@ struct sniff_tcp {
 #define TCP_HDR_SIZE 20
 
 // sendraw
-char if_bind_global[] = "lo" ;
-int if_bind_global_len = 2 ;
+char bind_device_name[] = "lo" ;
+int bind_device_name_len = 2 ;
 int sendraw_mode = 1;
+
+
 
 // DB
 MYSQL *connection = NULL;
@@ -100,17 +101,17 @@ MYSQL_ROW row;
 MYSQL_RES *res_block;
 MYSQL_ROW row_block;
 int cmp_ret = 1; // base: allow
-#define DOMAIN_BUF 1024
+#define DOMAIN_BUF 1048576
 #define REC_DOM_MAX 20
-#define REC_DOM_LEN 1024
+#define REC_DOM_LEN 1048576
 
 // TCP Header checksum
 struct pseudohdr {
-		u_int32_t   saddr;
-		u_int32_t   daddr;
-		u_int8_t    useless;
-		u_int8_t    protocol;
-		u_int16_t   tcplength;
+        u_int32_t   saddr;
+        u_int32_t   daddr;
+        u_int8_t    useless;
+        u_int8_t    protocol;
+        u_int16_t   tcplength;
 };
 
 // Protocol Info
@@ -126,7 +127,7 @@ unsigned short tcp_dst_port = 0;
 
 /*------------------function------------------*/
 // got_packet
-void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);	
+void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
 void print_info(const struct sniff_ethernet *ethernet, 
 				const struct sniff_ip *ip, 
 				const struct sniff_tcp *tcp,
@@ -145,8 +146,6 @@ void print_payload_right(const u_char *payload, int len);
 void print_hex_ascii_line_right(const u_char *payload, int len, int offset);
 unsigned short in_cksum ( u_short *addr , int len );
 
-
-void test_print(u_char* pre_packet, u_char* packet);
 
 
 ///////////////////////////////////////
@@ -261,6 +260,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	unsigned short payload_len = 0; // payload
 	payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
 	payload_len = ntohs(ip->ip_len) - size_ip - size_tcp;
+	// printf("payload_len (pre_packet) %u \n", payload_len);
 	
 	/*-------------------domain-------------------*/
 	u_char* domain = NULL;
@@ -333,315 +333,313 @@ unsigned short in_cksum(u_short *addr, int len)
 
 int sendraw( u_char* pre_packet, int mode)
 {
-	const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
+		const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
 
-	u_char packet[1600];
-	int on=1, len ;
-	struct iphdr *iphdr;
-	struct tcphdr *tcphdr;
-	struct in_addr source_address, dest_address;
-	struct pseudohdr *pseudo_header;
-	struct in_addr ip;
-	struct sockaddr_in address, target_addr; // target_addr later
-	int port;
-	int pre_payload_size = 0 ;
-	u_char *payload = NULL ;
-	int size_payload = 0 ;
-	int post_payload_size = 0 ;
-	int sendto_result = 0 ;
-	int setsockopt_result = 0 ;
-	int prt_sendto_payload = 0 ;
-	int warning_page = 1 ;
-	int ret = 1 ;							
-	int raw_socket, recv_socket;			// recv_socket later .
-
-
-	// --------vlan--------
-	// int size_vlan = 0 ; 					// excepted because of i think that i don't need this yet .
-	// int size_vlan_apply = 0 ; 			// excepted because of i think that i don't need this yet .
-	// int vlan_tag_disabled = 0 ;			// excepted because of i think that i don't need this yet .
-
-	// --------later--------
-	// char recv_packet[100], compare[100]; // later .
-	// struct hostent *target; 				// later .
-	// int loop1=0; 						// later .
-	// int loop2=0; 						// later .
-	// int rc = 0 ; 						// later .
-	// struct ifreq ifr ; 					// relative ioctl() -> ioctl function is control hardware and analyze hardware status
-	// char * if_bind ; 					// later .
-	// int if_bind_len = 0 ; 				// later .
-	// char* ipaddr_str_ptr ; 				// later .
-
-
-	#ifdef SUPPORT_OUTPUT
-	printf("\n");
-	print_chars('\t',6);
-	printf( "[raw socket sendto]\t[start]\n\n" );
-
-	print_chars('\t',6);
-	printf("   PRE_PACKET WHOLE(L2_PACKET_DATA) (%d bytes only):\n", 54);
-	print_payload_right(pre_packet, 54);
-	printf("\n");
-	
-	#endif
-
-	for( port=80; port<81; port++ ) {
-		// create raw socket
-		raw_socket = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
-		if ( raw_socket < 0 ) {
-			print_chars('\t',6);
-			fprintf(stderr,"Error in socket() creation - %s\n", strerror(errno));
-			fprintf(stderr,"Error in socket() creation - %s\n", strerror(errno));
-			return -2;
-		}
-
-		// IP_HDRINCL option: include IP_Header .
-		setsockopt( raw_socket, IPPROTO_IP, IP_HDRINCL, (char *)&on, sizeof(on)); 
-
-		if ( if_bind_global != NULL ) {
-			// i think that ifreq will be use later ( SO_BINDTODEVICE ) .
-			setsockopt_result = setsockopt( raw_socket, SOL_SOCKET, SO_BINDTODEVICE, if_bind_global, if_bind_global_len );
-
-			if( setsockopt_result == -1 ) {
-				print_chars('\t',6);
-				fprintf(stderr,"ERROR: setsockopt() - %s\n", strerror(errno));
-				return -2;
-			}
-			#ifdef SUPPORT_OUTPUT
-			else {
-				print_chars('\t',6);
-				fprintf(stdout,"OK: setsockopt(%s)(%d) - %s\n", if_bind_global, setsockopt_result, strerror(errno));
-			}
-			#endif
-		}
-
-		// ethernet setting in pre_packet without vlan
-		ethernet = (struct sniff_ethernet*)(pre_packet);
-		if (ethernet->ether_type == (unsigned short)*(unsigned short*)&"\x08\x00" ) {
-			#ifdef SUPPORT_OUTPUT
-			print_chars('\t',6);
-			printf("NORMAL PACKET");
-			#endif
-		} else {
-			fprintf(stderr,"NOTICE: ether_type is not IPv4, so you prepare other ether_types .......... \n");
-		}
-
-
-
-		// TCP, IP reset header without vlan
-		iphdr = (struct iphdr *)(packet) ;
-		memset( iphdr, 0, 20 );
-		tcphdr = (struct tcphdr *)(packet + 20);
-		memset( tcphdr, 0, 20 );
-
-		// twist s and d address
-		source_address.s_addr = ((struct iphdr *)(pre_packet + 14))->daddr ;
-		dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;		// for return response
-		iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;// identification field in ip_header
-
-		int pre_tcp_header_size = 0;
-		// char pre_tcp_header_size_char = 0x0; 	// Later
-		pre_tcp_header_size = ((struct tcphdr *)(pre_packet + 14 + 20))->doff ;
-		pre_payload_size = ntohs( ((struct iphdr *)(pre_packet + 14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
-
-		// TCP header setting
-		tcphdr->source = ((struct tcphdr *)(pre_packet + 14 + 20))->dest ;// src_port field in tcp_header
-		tcphdr->dest = ((struct tcphdr *)(pre_packet + 14 + 20))->source ;// dst_port field in tcp_header
-		tcphdr->seq = ((struct tcphdr *)(pre_packet + 14 + 20))->ack_seq ;// SEQ num field in tcp_header
-		tcphdr->ack_seq = ((struct tcphdr *)(pre_packet + 14 + 20))->seq  + htonl(pre_payload_size - 20);// ACK num field in tcp_header
-		tcphdr->window = ((struct tcphdr *)(pre_packet + 14 + 20))->window ;// window field in tcp_header
-		tcphdr->doff = 5;// offset field in tcp_header
-		tcphdr->ack = 1;// tcp_flag field in tcp_header
-		tcphdr->psh = 1;// tcp_flag field in tcp_header
-		tcphdr->fin = 1;// tcp_flag field in tcp_header
-	
-		// created pseudo_header for calculate TCP checksum ( total = 12bytes )
-		pseudo_header = (struct pseudohdr *)((char*)tcphdr-sizeof(struct pseudohdr));
-		pseudo_header->saddr = source_address.s_addr; // TTL,Protocol,Checksum field in ip_header(strange value)
-		pseudo_header->daddr = dest_address.s_addr; // src_ip field in ip_header(not change value)
-		pseudo_header->useless = (u_int8_t) 0; // reserved field in tcp_header
-		pseudo_header->protocol = IPPROTO_TCP; // dst_ip field in ip_header(strange value)
-		pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size); // dst_ip field in ip_header(strange value)
+		u_char packet[1600];
+        int IP_HDRINCL_ON=1, len ; // len Later .
+        struct iphdr *iphdr;
+        struct tcphdr *tcphdr;
+        struct in_addr source_address, dest_address;
+        struct pseudohdr *pseudo_header;
+        struct in_addr ip;
+		struct sockaddr_in address, target_addr; // target_addr later
+        int port;
+        int pre_payload_size = 0 ;
+		u_char *payload = NULL ;
+		int size_payload = 0 ;
+        int post_payload_size = 0 ;
+        int sendto_result = 0 ;
+		int setsockopt_result = 0 ;
+		int prt_sendto_payload = 0 ;
+		int warning_page = 1 ;
+		int ret = 1 ;							
+		int raw_socket, recv_socket;			// recv_socket later .
 		
-		char *fake_packet = 
-					"HTTP/1.1 200 OK\x0d\x0a"
-					"Content-Length: 230\x0d\x0a"
-					"Content-Type: text/html"
-					"\x0d\x0a\x0d\x0a"
-					"<html>\r\n"
-					"<head>\r\n"
-					"<meta charset=\"UTF-8\">\r\n"
-					"<title>\r\n"
-					"CroCheck - WARNING - PAGE\r\n"
-					"SITE BLOCKED - WARNING - \r\n"
-					"</title>\r\n"
-					"</head>\r\n"
-					"<body>\r\n"
-					"<center>\r\n"
-					"<img   src=\"http://127.0.0.1:3000/warning.jpg\" alter=\"*WARNING*\">\r\n"
-					"<h1>SITE BLOCKED</h1>\r\n"
-					"</center>\r\n"
-					"</body>\r\n"
-					"</html>\r\n"
-					;
-
-		post_payload_size = strlen(fake_packet);
-
-		// choose output content
-		warning_page = 5; // for test redirecting
-		if ( warning_page == 5 ){
-			memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
-		}
-
-		// renewal after post_payload_size for calculate TCP checksum
-		pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
-
-		// calculate TCP header checksum
-		tcphdr->check = in_cksum( (u_short *)pseudo_header,
-						sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);// checksum field in tcp_header
-
-		// line
-		print_chars('\t',6);
-
-		// IP header setting
-		iphdr->version = 4;//  version field in ip_header
-		iphdr->ihl = 5;// IHL field in ip_header
-		iphdr->protocol = IPPROTO_TCP;// protocol field in ip_header(reset)
-		iphdr->tot_len = htons(40 + post_payload_size);// total length field in ip_header
-		iphdr->id = ((struct iphdr *)(pre_packet + 14))->id + htons(1); //identification field in ip_header(increase 1)
-
-		// 0x40 -> don't use flag
-		memset( (char*)iphdr + 6 ,  0x40  , 1 );// IP_flags field in ip_header
-		iphdr->ttl = 60;// TTL field in ip_header(reset)
-		iphdr->saddr = source_address.s_addr;// src_ip field in ip_header(change value)
-		iphdr->daddr = dest_address.s_addr;// dst_ip field in ip_header(change value)
-
-		// calculate IP header checksum
-		iphdr->check = in_cksum( (u_short *)iphdr, sizeof(struct iphdr));// checksum field in ip_header(reset)
-
-		// for sendto
-		address.sin_family = AF_INET;
-		address.sin_port = tcphdr->dest ;
-		address.sin_addr.s_addr = dest_address.s_addr;
-
-
 		
-		prt_sendto_payload = 0;
+		// --------vlan--------
+		// int size_vlan = 0 ; 					// excepted because of i think that i don't need this yet .
+		// int size_vlan_apply = 0 ; 			// excepted because of i think that i don't need this yet .
+		// int vlan_tag_disabled = 0 ;			// excepted because of i think that i don't need this yet .
+		
+		// --------later--------
+		// char recv_packet[100], compare[100]; // later .
+        // struct hostent *target; 				// later .
+		// int loop1=0; 						// later .
+        // int loop2=0; 						// later .
+		// int rc = 0 ; 						// later .
+		// struct ifreq ifr ; 					// relative ioctl() -> ioctl function is control hardware and analyze hardware status
+		// char * if_bind ; 					// later .
+		// int if_bind_len = 0 ; 				// later .
+		// char* ipaddr_str_ptr ; 				// later .
+		
+		
+
 		#ifdef SUPPORT_OUTPUT
-		prt_sendto_payload = 1 ;
+		printf("\n");
+		print_chars('\t',6);
+		printf( "[raw socket sendto]\t[start]\n\n" );
+
+		print_chars('\t',6);
+		printf("   PRE_PACKET WHOLE(L2_PACKET_DATA) (%d bytes only):\n", 54);
+		print_payload_right(pre_packet, 54);
+		printf("\n");
 		#endif
 
-		if( prt_sendto_payload == 1 ) {
+        for( port=80; port<81; port++ ) {
+			// create raw socket
+			raw_socket = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
+			if ( raw_socket < 0 ) {
+				print_chars('\t',6);
+				fprintf(stderr,"Error in socket() creation - %s\n", strerror(errno));
+				fprintf(stderr,"Error in socket() creation - %s\n", strerror(errno));
+				return -2;
+			}
+		
+			// IP_HDRINCL option: include IP_Header .
+			setsockopt( raw_socket, IPPROTO_IP, IP_HDRINCL, (char *)&IP_HDRINCL_ON, sizeof(IP_HDRINCL_ON)); 
 
-			printf("\n\n");
-			print_chars('\t',6);
-			printf("----------------sendto Packet data----------------\n");
+			if ( bind_device_name != NULL ) {
+				// i think that ifreq will be use later ( SO_BINDTODEVICE ) .
+				setsockopt_result = setsockopt( raw_socket, SOL_SOCKET, SO_BINDTODEVICE, bind_device_name, bind_device_name_len );
 
-			print_chars('\t',6);
-			printf("    From: %s(%hhu.%hhu.%hhu.%hhu)\n",
-							inet_ntoa( source_address ),
-							((char*)&source_address.s_addr)[0],
-							((char*)&source_address.s_addr)[1],
-							((char*)&source_address.s_addr)[2],
-							((char*)&source_address.s_addr)[3]
-					);
-			print_chars('\t',6);
-			printf("      To: %s(%hhu.%hhu.%hhu.%hhu)\n",
-							inet_ntoa( dest_address ),
-							((char*)&dest_address.s_addr)[0],
-							((char*)&dest_address.s_addr)[1],
-							((char*)&dest_address.s_addr)[2],
-							((char*)&dest_address.s_addr)[3]
-					);
-
-			switch(iphdr->protocol) {
-				case IPPROTO_TCP:
+				if( setsockopt_result == -1 ) {
 					print_chars('\t',6);
-					printf("Protocol: TCP\n");
-					break;
-				case IPPROTO_UDP:
-					print_chars('\t',6);
-					printf("Protocol: UDP\n");
-					return -1;
-				case IPPROTO_ICMP:
-					print_chars('\t',6);
-					printf("Protocol: ICMP\n");
-					return -1;
-				case IPPROTO_IP:
-					print_chars('\t',6);
-					printf("Protocol: IP\n");
-					return -1;
-				case IPPROTO_IGMP:
-					print_chars('\t',6);
-					printf("Protocol: IGMP\n");
-					return -1;
-				default:
-					print_chars('\t',6);
-					printf("Protocol: unknown\n");
+					fprintf(stderr,"ERROR: setsockopt() - %s\n", strerror(errno));
 					return -2;
+				}
+				#ifdef SUPPORT_OUTPUT
+				else {
+					print_chars('\t',6);
+					fprintf(stdout,"OK: setsockopt(%s)(%d) - %s\n", bind_device_name, setsockopt_result, strerror(errno));
+				}
+				#endif
 			}
-
-			print_chars('\t',6);
-			printf("Src port: %d\n", ntohs(tcphdr->source));
-			print_chars('\t',6);
-			printf("Dst port: %d\n", ntohs(tcphdr->dest));
-
-			payload = (u_char *)(packet + sizeof(struct iphdr) + tcphdr->doff * 4 );
-
-			size_payload = ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 );
-
-			if (size_payload > 0) {
-				printf("\n");
+			
+			// ethernet setting in pre_packet without vlan
+			ethernet = (struct sniff_ethernet*)(pre_packet);
+			if (ethernet->ether_type == (unsigned short)*(unsigned short*)&"\x08\x00" ) {
+				#ifdef SUPPORT_OUTPUT
 				print_chars('\t',6);
-				printf("   PACKET-HEADER(try1) (%d bytes):\n", ntohs(iphdr->tot_len) - size_payload); // 40
-				print_payload_right((const u_char*)&packet, ntohs(iphdr->tot_len) - size_payload);
-			}
-
-			if (/*size_payload > */0) {
-				printf("\n");
-				print_chars('\t',6);
-				printf("   Payload (%d bytes):\n", size_payload);
-				print_payload_right(payload, size_payload);
-			}
-		} // end -- if -- prt_sendto_payload = 1 ;
-
-		if ( mode == 1 ) {
-			sendto_result = sendto( raw_socket, &packet, ntohs(iphdr->tot_len), 0x0,
-									(struct sockaddr *)&address, sizeof(address) ) ;
-			if ( sendto_result != ntohs(iphdr->tot_len) ) {
-				fprintf ( stderr,"ERROR: sendto() - %s\n", strerror(errno) ) ;
-				ret = -2;
+				printf("NORMAL PACKET");
+				#endif
 			} else {
-				// fprintf ( stdout,"INFO: sendto() success ! \n");
-				ret = 0;
+				fprintf(stderr,"NOTICE: ether_type is not IPv4, so you prepare other ether_types .......... \n");
 			}
-		} // end if(mode)
+
+			// TCP, IP reset header without vlan
+			iphdr = (struct iphdr *)(packet) ;
+			memset( iphdr, 0, 20 );
+			tcphdr = (struct tcphdr *)(packet + 20);
+			memset( tcphdr, 0, 20 );
+
+			// twist s and d address
+			source_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;
+			dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->daddr ;		// for return response
+			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;// identification field in ip_header
+			
+			int pre_tcp_header_size = 0;
+			// char pre_tcp_header_size_char = 0x0; 	// Later
+			pre_tcp_header_size = ((struct tcphdr *)(pre_packet + 14 + 20))->doff ;
+			pre_payload_size = ntohs( ((struct iphdr *)(pre_packet + 14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
+
+			// TCP header setting
+			tcphdr->source = ((struct tcphdr *)(pre_packet + 14 + 20))->dest ;// src_port field in tcp_header
+			tcphdr->dest = ((struct tcphdr *)(pre_packet + 14 + 20))->source ;// dst_port field in tcp_header
+			tcphdr->seq = ((struct tcphdr *)(pre_packet + 14 + 20))->ack_seq ;// SEQ num field in tcp_header
+			tcphdr->ack_seq = ((struct tcphdr *)(pre_packet + 14 + 20))->seq  + htonl(pre_payload_size - 20)  ;// ACK num field in tcp_header
+			tcphdr->window = ((struct tcphdr *)(pre_packet + 14 + 20))->window ;// window field in tcp_header
+			tcphdr->doff = 5;// offset field in tcp_header
+			tcphdr->ack = 1;// tcp_flag field in tcp_header
+			tcphdr->psh = 1;// tcp_flag field in tcp_header
+			tcphdr->fin = 1;// tcp_flag field in tcp_header
+			
+			// created pseudo_header for calculate TCP checksum ( total = 12bytes )
+			pseudo_header = (struct pseudohdr *)((char*)tcphdr-sizeof(struct pseudohdr));
+			pseudo_header->saddr = source_address.s_addr;// TTL,Protocol,Checksum field in ip_header(strange value)
+			pseudo_header->daddr = dest_address.s_addr;// src_ip field in ip_header(not change value)
+			pseudo_header->useless = (u_int8_t) 0;// reserved field in tcp_header
+			pseudo_header->protocol = IPPROTO_TCP;// dst_ip field in ip_header(strange value)
+			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);// dst_ip field in ip_header(strange value)
+
+			char *fake_packet = 
+						"HTTP/1.1 200 OK\x0d\x0a"
+						"Content-Length: 230\x0d\x0a"
+						"Content-Type: text/html"
+						"\x0d\x0a\x0d\x0a"
+						"<html>\r\n"
+						"<head>\r\n"
+						"<meta charset=\"UTF-8\">\r\n"
+						"<title>\r\n"
+						"CroCheck - WARNING - PAGE\r\n"
+						"SITE BLOCKED - WARNING - \r\n"
+						"</title>\r\n"
+						"</head>\r\n"
+						"<body>\r\n"
+						"<center>\r\n"
+						"<img   src=\"http://127.0.0.1:3000/warning.jpg\" alter=\"*WARNING*\">\r\n"
+						"<h1>SITE BLOCKED</h1>\r\n"
+						"</center>\r\n"
+						"</body>\r\n"
+						"</html>\r\n"
+						;
+			
+			post_payload_size = strlen(fake_packet);
+			
+			// choose output content
+			warning_page = 5; // for test redirecting
+			if ( warning_page == 5 ){
+				memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
+			}
+			
+			// renewal after post_payload_size for calculate TCP checksum
+			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
+
+			// calculate TCP header checksum
+			tcphdr->check = in_cksum( (u_short *)pseudo_header,
+							sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);
+			
+			// line
+			print_chars('\t',6);
+			
+			// IP header setting
+			iphdr->version = 4;// version field in ip_header
+			iphdr->ihl = 5;// IHL field in ip_header
+			iphdr->protocol = IPPROTO_TCP;// protocol field in ip_header(reset)
+			iphdr->tot_len = htons(40 + post_payload_size);// total length field in ip_header
+			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id + htons(1);// identification field in ip_header(increase 1)
+			
+			// 0x40 -> don't use flag
+			memset( (char*)iphdr + 6 ,  0x40  , 1 );// IP_flags field in ip_header
+			iphdr->ttl = 60;// TTL field in ip_header(reset)
+			iphdr->saddr = source_address.s_addr;// src_ip field in ip_header(change value)
+			iphdr->daddr = dest_address.s_addr;// dst_ip field in ip_header(change value)
+			
+			// calculate IP header checksum
+			iphdr->check = in_cksum( (u_short *)iphdr, sizeof(struct iphdr));// checksum field in ip_header(reset)
+			
+			// for sendto
+			address.sin_family = AF_INET;
+			address.sin_port = tcphdr->dest ;
+			address.sin_addr.s_addr = dest_address.s_addr;
+
+			prt_sendto_payload = 0;
+			#ifdef SUPPORT_OUTPUT
+			prt_sendto_payload = 1 ;
+			#endif
+
+			if( prt_sendto_payload == 1 ) {
+
+				printf("\n\n");
+				print_chars('\t',6);
+				printf("----------------sendto Packet data----------------\n");
+
+				print_chars('\t',6);
+				printf("    From: %s(%hhu.%hhu.%hhu.%hhu)\n",
+								inet_ntoa( source_address ),
+								((char*)&source_address.s_addr)[0],
+								((char*)&source_address.s_addr)[1],
+								((char*)&source_address.s_addr)[2],
+								((char*)&source_address.s_addr)[3]
+						);
+				print_chars('\t',6);
+				printf("      To: %s(%hhu.%hhu.%hhu.%hhu)\n",
+								inet_ntoa( dest_address ),
+								((char*)&dest_address.s_addr)[0],
+								((char*)&dest_address.s_addr)[1],
+								((char*)&dest_address.s_addr)[2],
+								((char*)&dest_address.s_addr)[3]
+						);
+
+				switch(iphdr->protocol) {
+					case IPPROTO_TCP:
+						print_chars('\t',6);
+						printf("Protocol: TCP\n");
+						break;
+					case IPPROTO_UDP:
+						print_chars('\t',6);
+						printf("Protocol: UDP\n");
+						return -1;
+					case IPPROTO_ICMP:
+						print_chars('\t',6);
+						printf("Protocol: ICMP\n");
+						return -1;
+					case IPPROTO_IP:
+						print_chars('\t',6);
+						printf("Protocol: IP\n");
+						return -1;
+					case IPPROTO_IGMP:
+						print_chars('\t',6);
+						printf("Protocol: IGMP\n");
+						return -1;
+					default:
+						print_chars('\t',6);
+						printf("Protocol: unknown\n");
+						return -2;
+				}
+
+				print_chars('\t',6);
+				printf("Src port: %d\n", ntohs(tcphdr->source));
+				print_chars('\t',6);
+				printf("Dst port: %d\n", ntohs(tcphdr->dest));
+
+				payload = (u_char *)(packet + sizeof(struct iphdr) + tcphdr->doff * 4 );
+
+				size_payload = ntohs(iphdr->tot_len) - ( sizeof(struct iphdr) + tcphdr->doff * 4 );
+				
+				if (size_payload > 0) {
+					printf("\n");
+					print_chars('\t',6);
+					printf("   PACKET-HEADER(try1) (%d bytes):\n", ntohs(iphdr->tot_len) - size_payload); // 40
+					print_payload_right((const u_char*)&packet, ntohs(iphdr->tot_len) - size_payload);
+				}
+
+				if (size_payload > 0) {
+					printf("\n");
+					print_chars('\t',6);
+					printf("   Payload (%d bytes):\n", size_payload);
+					print_payload_right(payload, size_payload);
+				}
+				
+			} // end -- if -- prt_sendto_payload = 1 ;
+			
+			if ( mode == 1 ) {
+				sendto_result = sendto( raw_socket, &packet, ntohs(iphdr->tot_len), 0x0,
+										(struct sockaddr *)&address, sizeof(address) ) ;
+				if ( sendto_result != ntohs(iphdr->tot_len) ) {
+					fprintf ( stderr,"ERROR: sendto() - %s\n", strerror(errno) ) ;
+					ret = -2;
+				} else {
+					// fprintf ( stdout,"INFO: sendto() success ! \n");
+					ret = 0;
+				}
+			} // end if(mode)
 
 
-		if ( (unsigned int)iphdr->daddr == (unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" ) {
-			printf("##########################################################################################################################\n");
-			printf("##########################################################################################################################\n");
-			printf("##########################################################################################################################\n");
-			printf("##########################################################################################################################\n");
-			printf("##########################################################################################################################\n");
-			printf("##########################################################################################################################\n");
-			printf("##########################################################################################################################\n");
-			printf( "address1 == %hhu.%hhu.%hhu.%hhu\taddress2 == %X\taddress3 == %X\n",
-					*(char*)((char*)&source_address.s_addr + 0),*(char*)((char*)&source_address.s_addr + 1),
-					*(char*)((char*)&source_address.s_addr + 2),*(char*)((char*)&source_address.s_addr + 3),
-					source_address.s_addr,	(unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" );
-		}
-
-		close( raw_socket );
-	} // end for loop
-
-	#ifdef SUPPORT_OUTPUT
-	printf("\n");
-	print_chars('\t',6);
-	printf( "[sendraw] end . \n\n" );
-	#endif
-
-	return ret; // 0 -> normal exit
+			if ( (unsigned int)iphdr->daddr == (unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" ) {
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf("##########################################################################################################################\n");
+				printf( "address1 == %hhu.%hhu.%hhu.%hhu\taddress2 == %X\taddress3 == %X\n",
+						*(char*)((char*)&source_address.s_addr + 0),*(char*)((char*)&source_address.s_addr + 1),
+						*(char*)((char*)&source_address.s_addr + 2),*(char*)((char*)&source_address.s_addr + 3),
+						source_address.s_addr,	(unsigned int)*(unsigned int*)"\xCB\xF6\x53\x2C" );
+			}
+			
+			close( raw_socket );
+        } // end for loop
+		
+		#ifdef SUPPORT_OUTPUT
+		printf("\n");
+		print_chars('\t',6);
+        printf( "[sendraw] end . \n\n" );
+		#endif
+	
+		
+		return ret; // 0 -> normal exit
 }
 // end sendraw function .
 
@@ -772,17 +770,16 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 
 		// print block_list
 		int cnt = 1;
-		
 		printf("\n");
 		while( (row_block = mysql_fetch_row(res_block) ) != NULL){
-			//printf("Mysql block_list in tb_packet_block [ %d ] \n", cnt++);
-			//printf("src_ip: %20s | ", row_block[1]); 			// row_block[0] -> id
-			//printf("src_port: %5s | \n", row_block[2]);
-			//printf("dst_ip: %20s | ", row_block[3]);
-			//printf("dst_port: %5s | \n", row_block[4]);
-			//printf("Domain: %20s | ", row_block[5]);
+			printf("Mysql block_list in tb_packet_block [ row : %d | ID : %s ] \n", cnt++, row_block[0]);
+			printf("src_ip: %20s | ", row_block[1]); 			
+			printf("src_port: %5s | \n", row_block[2]);
+			printf("dst_ip: %20s | ", row_block[3]);
+			printf("dst_port: %5s | \n", row_block[4]);
+			printf("Domain: %20s | ", row_block[5]);
 			strcpy( &domain_arr[num++][0], row_block[5]);		// string copy for compare
-			//printf("created at: %s . \n\n\n", row_block[6]); 	// doesn't exist result in block_list
+			printf("created at: %s . \n\n\n", row_block[6]); 	// doesn't exist result in block_list
 		}
 		
 		printf("\n");
@@ -795,10 +792,15 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			int str1_len = strlen( &domain_arr[i][0] ); // block list
 			int str2_len = strlen( domain_str );		// domain_string
 			
-			if( str1_len != str2_len ) {
+			// break different value each other and
+			if( str1_len != str2_len && str1_len != NULL ) {
 				continue; // move to next array .
 			}
-
+			
+			// first, break if meet NULL data in array .
+			if( strlen( &domain_arr[i][0] ) == 0 ) 
+				break; 
+			
 			cmp_ret = strcmp( &domain_arr[i][0], domain_str );
 			
 			// if each other string is same length but not same string, so break
@@ -808,9 +810,7 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			if( cmp_ret == 0 )
 				break;
 			
-			// break if meet NULL data in array .
-			if( strlen( &domain_arr[0][i] ) == 0 ) 
-				break; 
+			
 		} 
 
 		// block or allow
@@ -870,14 +870,14 @@ void mysql_select_log()
 	int cnt = 1;
 	
 	while( (row = mysql_fetch_row(res) ) != NULL){
-		/*printf("Mysql contents in tb_packet_log [ %d ] \n", cnt++);
-		printf(" src_ip: %20s | ", row[1]); // row[0] -> id
+		printf("Mysql contents in tb_packet_log [ row : %d | ID : %s ] \n", cnt++, row[0]);
+		printf(" src_ip: %20s | ", row[1]); 
 		printf(" src_port: %5s | \n", row[2]);
 		printf(" dst_ip: %20s | ", row[3]);
 		printf(" dst_port: %5s | \n", row[4]);
 		printf(" Domain: %20s | ", row[5]);
 		printf(" result: %7s | ", row[6]);
-		printf(" created at: %s . \n\n\n", row[7]);*/
+		printf(" created at: %s . \n\n\n", row[7]);
 	}
 	printf("\n");
 	mysql_free_result(res);
@@ -929,69 +929,3 @@ void print_info(const struct sniff_ethernet *ethernet,
 	
 	// print domain
 	printf("INFO: Domain = %s\n", domain_str);
-}
-
-void test_print(u_char* pre_packet, u_char* packet){
-	printf("\n\n----------IP header compare----------\n");
-	printf("[curl_packet]\t\t\t\t");
-	printf("[sendraw_packet]\n");
-	printf("version, IHL = %02x\t\t\t",pre_packet[0+14]);
-	printf("version, IHL = %02x\n",packet[0]);
-	
-	printf("type of service = %02x\t\t\t",pre_packet[1+14]);
-	printf("type of service = %02x\n",packet[1]);
-	
-	printf("Total Length = %02x %02x\t\t\t",pre_packet[2+14],pre_packet[3+14]);
-	printf("Total Length = %02x %02x\n",packet[2],packet[3]);
-	
-	printf("identification = %02x %02x\t\t\t",pre_packet[4+14],pre_packet[5+14]);
-	printf("identification = %02x %02x\n",packet[4],packet[5]);
-	
-	printf("IP flags, fragment offset= %02x %02x\t",pre_packet[6+14],pre_packet[7+14]);
-	printf("IP flags, fragment offset= %02x %02x\n",packet[6],packet[7]);
-	
-	printf("TTL = %02x\t\t\t\t",pre_packet[8+14]);
-	printf("TTL = %02x\n",packet[8]);
-	
-	printf("protocol = %02x\t\t\t\t",pre_packet[9+14]);
-	printf("protocol = %02x\n",packet[9]);
-	
-	printf("checksum = %02x %02x\t\t\t",pre_packet[10+14],pre_packet[11+14]);
-	printf("checksum = %02x %02x\n",packet[10],packet[11]);
-	
-	printf("src IP = %02x %02x %02x %02x\t\t\t",pre_packet[12+14],pre_packet[13+14],pre_packet[14+14],pre_packet[15+14]);
-	printf("src IP = %02x %02x %02x %02x\n",packet[12],packet[13],packet[14],packet[15]);
-	
-	printf("dst IP = %02x %02x %02x %02x\t\t\t",pre_packet[16+14],pre_packet[17+14],pre_packet[18+14],pre_packet[19+14]);
-	printf("dst IP = %02x %02x %02x %02x\n",packet[16],packet[17],packet[18],packet[19]);
-	
-	printf("\n\n----------TCP header compare----------\n");
-	printf("[curl_packet]\t\t\t\t");
-	printf("[sendraw_packet]\n");
-	printf("src port = %02x %02x\t\t\t",pre_packet[20+14],pre_packet[21+14]);
-	printf("src port = %02x %02x\n",packet[20],packet[21]);
-	
-	printf("dst port = %02x %02x\t\t\t",pre_packet[22+14],pre_packet[23+14]);
-	printf("dst port = %02x %02x\n",packet[22],packet[23]);
-	
-	printf("SEQ num = %02x %02x %02x %02x\t\t\t",pre_packet[24+14],pre_packet[25+14],pre_packet[26+14],pre_packet[27+14]);
-	printf("SEQ num = %02x %02x %02x %02x\n",packet[24],packet[25],packet[26],packet[27]);
-	
-	printf("ACK num = %02x %02x %02x %02x\t\t\t",pre_packet[28+14],pre_packet[29+14],pre_packet[30+14],pre_packet[31+14]);
-	printf("ACK num = %02x %02x %02x %02x\n",packet[28],packet[29],packet[30],packet[31]);
-	
-	printf("offset, reserved = %02x\t\t\t",pre_packet[32+14]);
-	printf("offset, reserved = %02x\n",packet[32]);
-	
-	printf("TCP Flags = %02x\t\t\t\t",pre_packet[33+14]);
-	printf("TCP Flags = %02x\n",packet[33]);
-	
-	printf("window = %02x %02x\t\t\t\t",pre_packet[34+14],pre_packet[35+14]);
-	printf("window = %02x %02x\n",packet[34],packet[35]);
-	
-	printf("checksum = %02x %02x\t\t\t",pre_packet[36+14],pre_packet[37+14]);
-	printf("checksum = %02x %02x\n",packet[36],packet[37]);
-	
-	printf("urgent pointer = %02x %02x\t\t\t",pre_packet[38+14],pre_packet[39+14]);
-	printf("urgent pointer = %02x %02x\n",packet[38],packet[39]);
-}
