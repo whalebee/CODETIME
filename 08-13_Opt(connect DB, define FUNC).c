@@ -334,7 +334,7 @@ int sendraw( u_char* pre_packet, int mode)
 		const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
 
 		u_char packet[1600];
-        int IP_HDRINCL_ON=1, len ; 			// len Later .
+        int IP_HDRINCL_ON=1, len ; // len Later .
         struct iphdr *iphdr;
         struct tcphdr *tcphdr;
         struct in_addr source_address, dest_address;
@@ -378,8 +378,8 @@ int sendraw( u_char* pre_packet, int mode)
 		printf( "[raw socket sendto]\t[start]\n\n" );
 
 		print_chars('\t',6);
-		printf("   PRE_PACKET WHOLE(L2_PACKET_DATA) (%d bytes only):\n", 100);
-		print_payload_right(pre_packet, 100);
+		printf("   PRE_PACKET WHOLE(L2_PACKET_DATA) (%d bytes only):\n", 54);
+		print_payload_right(pre_packet, 54);
 		printf("\n");
 		#endif
 
