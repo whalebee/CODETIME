@@ -488,7 +488,7 @@ int sendraw( u_char* pre_packet, int mode)
 			if ( warning_page == 5 ){
 				memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
 			}
-			
+			// ㅎㅎ
 			// renewal after post_payload_size for calculate TCP checksum
 			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
 
