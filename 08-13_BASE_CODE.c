@@ -435,6 +435,7 @@ int sendraw( u_char* pre_packet, int mode)
 			// twist s and d address
 			source_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;
 			dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->daddr ;		// for return response
+          
 			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;// identification field in ip_header
 			
 			int pre_tcp_header_size = 0;
@@ -460,6 +461,7 @@ int sendraw( u_char* pre_packet, int mode)
 			pseudo_header->useless = (u_int8_t) 0;// reserved field in tcp_header
 			pseudo_header->protocol = IPPROTO_TCP;// dst_ip field in ip_header(strange value)
 			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);// dst_ip field in ip_header(strange value)
+
 
 			char *fake_packet = 
 						"HTTP/1.1 200 OK\x0d\x0a"
@@ -496,7 +498,8 @@ int sendraw( u_char* pre_packet, int mode)
 
 			// calculate TCP header checksum
 			tcphdr->check = in_cksum( (u_short *)pseudo_header,
-							sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);// checksum field in tcp_header
+			               sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);// checksum field in tcp_header
+
 			
 			// line
 			print_chars('\t',6);
