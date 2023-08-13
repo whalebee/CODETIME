@@ -796,7 +796,7 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			int str2_len = strlen( domain_str );		// domain_string
 			
 			// break different value each other and
-			if( str1_len != str2_len && str1_len != NULL ) {
+			if( str1_len != str2_len && str1_len != 0 ) {
 				continue; // move to next array .
 			}
 			
