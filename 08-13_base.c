@@ -1,4 +1,4 @@
-// test1
+// test
 #include <pcap.h>
 #include <stdio.h>
 #include <string.h>
@@ -92,6 +92,8 @@ char bind_device_name[] = "lo" ;
 int bind_device_name_len = 2 ;
 int sendraw_mode = 1;
 
+
+
 // DB
 MYSQL *connection = NULL;
 MYSQL conn;
@@ -144,7 +146,6 @@ int print_chars(char print_char, int nums);
 void print_payload_right(const u_char *payload, int len);
 void print_hex_ascii_line_right(const u_char *payload, int len, int offset);
 unsigned short in_cksum ( u_short *addr , int len );
-
 
 
 
@@ -260,6 +261,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	unsigned short payload_len = 0; // payload
 	payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp);
 	payload_len = ntohs(ip->ip_len) - size_ip - size_tcp;
+	// printf("payload_len (pre_packet) %u \n", payload_len);
 	
 	/*-------------------domain-------------------*/
 	u_char* domain = NULL;
@@ -335,7 +337,7 @@ int sendraw( u_char* pre_packet, int mode)
 		const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
 
 		u_char packet[1600];
-        int IP_HDRINCL_ON=1, len ; 			// len Later .
+        int IP_HDRINCL_ON=1, len ; // len Later .
         struct iphdr *iphdr;
         struct tcphdr *tcphdr;
         struct in_addr source_address, dest_address;
@@ -379,8 +381,8 @@ int sendraw( u_char* pre_packet, int mode)
 		printf( "[raw socket sendto]\t[start]\n\n" );
 
 		print_chars('\t',6);
-		printf("   PRE_PACKET WHOLE(L2_PACKET_DATA) (%d bytes only):\n", 100);
-		print_payload_right(pre_packet, 100);
+		printf("   PRE_PACKET WHOLE(L2_PACKET_DATA) (%d bytes only):\n", 54);
+		print_payload_right(pre_packet, 54);
 		printf("\n");
 		#endif
 
@@ -432,8 +434,8 @@ int sendraw( u_char* pre_packet, int mode)
 			memset( tcphdr, 0, 20 );
 
 			// twist s and d address
-			source_address.s_addr = ((struct iphdr *)(pre_packet + 14))->daddr ;
-			dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;		// for return response
+			source_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;
+			dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->daddr ;		// for return response
 			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;
 			
 			int pre_tcp_header_size = 0;
@@ -598,6 +600,7 @@ int sendraw( u_char* pre_packet, int mode)
 					printf("   Payload (%d bytes):\n", size_payload);
 					print_payload_right(payload, size_payload);
 				}
+				
 			} // end -- if -- prt_sendto_payload = 1 ;
 			
 			if ( mode == 1 ) {
@@ -635,6 +638,7 @@ int sendraw( u_char* pre_packet, int mode)
 		print_chars('\t',6);
         printf( "[sendraw] end . \n\n" );
 		#endif
+	
 		
 		return ret; // 0 -> normal exit
 }
@@ -769,8 +773,8 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 		int cnt = 1;
 		printf("\n");
 		while( (row_block = mysql_fetch_row(res_block) ) != NULL){
-			printf("Mysql block_list in tb_packet_block [ %d ] \n", cnt++);
-			printf("src_ip: %20s | ", row_block[1]); 			// row_block[0] -> id
+			printf("Mysql block_list in tb_packet_block [ row : %d | ID : %s ] \n", cnt++, row_block[0]);
+			printf("src_ip: %20s | ", row_block[1]); 			
 			printf("src_port: %5s | \n", row_block[2]);
 			printf("dst_ip: %20s | ", row_block[3]);
 			printf("dst_port: %5s | \n", row_block[4]);
@@ -789,10 +793,15 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			int str1_len = strlen( &domain_arr[i][0] ); // block list
 			int str2_len = strlen( domain_str );		// domain_string
 			
-			if( str1_len != str2_len ) {
+			// break different value each other and
+			if( str1_len != str2_len && str1_len != NULL ) {
 				continue; // move to next array .
 			}
-
+			
+			// first, break if meet NULL data in array .
+			if( strlen( &domain_arr[i][0] ) == 0 ) 
+				break; 
+			
 			cmp_ret = strcmp( &domain_arr[i][0], domain_str );
 			
 			// if each other string is same length but not same string, so break
@@ -802,9 +811,7 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			if( cmp_ret == 0 )
 				break;
 			
-			// break if meet NULL data in array .
-			if( strlen( &domain_arr[0][i] ) == 0 ) 
-				break; 
+			
 		} 
 
 		// block or allow
@@ -864,8 +871,8 @@ void mysql_select_log()
 	int cnt = 1;
 	
 	while( (row = mysql_fetch_row(res) ) != NULL){
-		printf("Mysql contents in tb_packet_log [ %d ] \n", cnt++);
-		printf(" src_ip: %20s | ", row[1]); // row[0] -> id
+		printf("Mysql contents in tb_packet_log [ row : %d | ID : %s ] \n", cnt++, row[0]);
+		printf(" src_ip: %20s | ", row[1]); 
 		printf(" src_port: %5s | \n", row[2]);
 		printf(" dst_ip: %20s | ", row[3]);
 		printf(" dst_port: %5s | \n", row[4]);
