@@ -198,8 +198,8 @@ int main(int argc, char *argv[])
 	connection = mysql_real_connect(
 			&conn,				// mariadb/mysql handler
 			"localhost",		// host address
-			"root",				// db id
-			"1234",				// db pass
+			"dbuser",				// db id
+			"dbuserpass",				// db pass
 			"project_db",		// db_name
 			3306,				// port
 			(char*)NULL,		// unix_socket -> usually NULL
@@ -818,7 +818,7 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 
 		// block or allow
 		if( cmp_ret == 0 ) {
-			printf("DEBUG: main blocked . \n");
+			printf("DEBUG: domain blocked . \n");
 			int sendraw_ret = sendraw(packet , sendraw_mode);
 			if ( sendraw_ret != 0 ) {
 				fprintf(stderr, "ERROR: emerge in sendraw() !!! (line=%d) \n", __LINE__);
