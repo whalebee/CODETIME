@@ -141,7 +141,6 @@ void mysql_block_list(u_char* domain_str, const u_char *packet);
 int sendraw( u_char* pre_packet , int mode ) ;
 int print_chars(char print_char, int nums);
 void print_payload_right(const u_char *payload, int len);
-void print_hex_ascii_line(const u_char *payload, int len, int offset);
 void print_hex_ascii_line_right(const u_char *payload, int len, int offset);
 unsigned short in_cksum ( u_short *addr , int len );
 
@@ -366,7 +365,7 @@ int sendraw( u_char* pre_packet, int mode)
 		// int loop1=0; 						// later .
         // int loop2=0; 						// later .
 		// int rc = 0 ; 						// later .
-		//struct ifreq ifr ; 					// IDK .
+		// struct ifreq ifr ; 					// relative ioctl() -> ioctl function is control hardware and analyze hardware status
 		// char * if_bind ; 					// later .
 		// int if_bind_len = 0 ; 				// later .
 		// char* ipaddr_str_ptr ; 				// later .
@@ -378,12 +377,10 @@ int sendraw( u_char* pre_packet, int mode)
 		print_chars('\t',6);
 		printf( "[raw socket sendto]\t[start]\n\n" );
 
-		// if (size_payload > 0 || 1) // origin .
 		print_chars('\t',6);
 		printf("   PRE_PACKET WHOLE(L2_PACKET_DATA) (%d bytes only):\n", 100);
 		print_payload_right(pre_packet, 100);
 		printf("\n");
-		
 		#endif
 
         for( port=80; port<81; port++ ) {
@@ -652,53 +649,6 @@ int print_chars(char print_char, int nums)
 	return i;
 }
 
-void
-print_hex_ascii_line(const u_char *payload, int len, int offset)
-{
-
-	int i;
-	int gap;
-	const u_char *ch;
-
-	/* offset */
-	printf("%05d   ", offset);
-
-	/* hex */
-	ch = payload;
-	for(i = 0; i < len; i++) {
-		printf("%02x ", *ch);
-		ch++;
-		/* print extra space after 8th byte for visual aid */
-		if (i == 7)
-			printf(" ");
-	}
-	/* print space to handle line less than 8 bytes */
-	if (len < 8)
-		printf(" ");
-
-	/* fill hex gap with spaces if not full line */
-	if (len < 16) {
-		gap = 16 - len;
-		for (i = 0; i < gap; i++) {
-			printf("   ");
-		}
-	}
-	printf("   ");
-
-	/* ascii (if printable) */
-	ch = payload;
-	for(i = 0; i < len; i++) {
-		if (isprint(*ch))
-			printf("%c", *ch);
-		else
-			printf(".");
-		ch++;
-	}
-
-	printf("\n");
-
-    return;
-}
 
 void
 print_hex_ascii_line_right(const u_char *payload, int len, int offset)
