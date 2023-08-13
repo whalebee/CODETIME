@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-//alsrkhgcmlk
+
 #include <errno.h>
 
 #include <sys/types.h>
