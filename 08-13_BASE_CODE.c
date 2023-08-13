@@ -435,7 +435,8 @@ int sendraw( u_char* pre_packet, int mode)
 			// twist s and d address
 			source_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;
 			dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->daddr ;		// for return response
-			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;
+          
+			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;// identification field in ip_header
 			
 			int pre_tcp_header_size = 0;
 			// char pre_tcp_header_size_char = 0x0; 	// Later
@@ -443,23 +444,24 @@ int sendraw( u_char* pre_packet, int mode)
 			pre_payload_size = ntohs( ((struct iphdr *)(pre_packet + 14))->tot_len ) - ( 20 + pre_tcp_header_size * 4 ) ;
 
 			// TCP header setting
-			tcphdr->source = ((struct tcphdr *)(pre_packet + 14 + 20))->dest ;		// twist s and d port
-			tcphdr->dest = ((struct tcphdr *)(pre_packet + 14 + 20))->source ;		// for return response
-			tcphdr->seq = ((struct tcphdr *)(pre_packet + 14 + 20))->ack_seq ;
-			tcphdr->ack_seq = ((struct tcphdr *)(pre_packet + 14 + 20))->seq  + htonl(pre_payload_size - 20)  ;
-			tcphdr->window = ((struct tcphdr *)(pre_packet + 14 + 20))->window ;
-			tcphdr->doff = 5;
-			tcphdr->ack = 1;
-			tcphdr->psh = 1;
-			tcphdr->fin = 1;
+			tcphdr->source = ((struct tcphdr *)(pre_packet + 14 + 20))->dest ;// src_port field in tcp_header
+			tcphdr->dest = ((struct tcphdr *)(pre_packet + 14 + 20))->source ;// dst_port field in tcp_header
+			tcphdr->seq = ((struct tcphdr *)(pre_packet + 14 + 20))->ack_seq ;// SEQ num field in tcp_header
+			tcphdr->ack_seq = ((struct tcphdr *)(pre_packet + 14 + 20))->seq  + htonl(pre_payload_size - 20)  ;// ACK num field in tcp_header
+			tcphdr->window = ((struct tcphdr *)(pre_packet + 14 + 20))->window ;// window field in tcp_header
+			tcphdr->doff = 5;// offset field in tcp_header
+			tcphdr->ack = 1;// tcp_flag field in tcp_header
+			tcphdr->psh = 1;// tcp_flag field in tcp_header
+			tcphdr->fin = 1;// tcp_flag field in tcp_header
 			
 			// created pseudo_header for calculate TCP checksum ( total = 12bytes )
 			pseudo_header = (struct pseudohdr *)((char*)tcphdr-sizeof(struct pseudohdr));
-			pseudo_header->saddr = source_address.s_addr; // 2bytes
-			pseudo_header->daddr = dest_address.s_addr; // 2bytes
-			pseudo_header->useless = (u_int8_t) 0; // origin name: reserved , 1btyes
-			pseudo_header->protocol = IPPROTO_TCP; // 1btyes
-			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size); // 2bytes
+			pseudo_header->saddr = source_address.s_addr;// TTL,Protocol,Checksum field in ip_header(strange value)
+			pseudo_header->daddr = dest_address.s_addr;// src_ip field in ip_header(not change value)
+			pseudo_header->useless = (u_int8_t) 0;// reserved field in tcp_header
+			pseudo_header->protocol = IPPROTO_TCP;// dst_ip field in ip_header(strange value)
+			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);// dst_ip field in ip_header(strange value)
+
 
 			char *fake_packet = 
 						"HTTP/1.1 200 OK\x0d\x0a"
@@ -496,26 +498,27 @@ int sendraw( u_char* pre_packet, int mode)
 
 			// calculate TCP header checksum
 			tcphdr->check = in_cksum( (u_short *)pseudo_header,
-							sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);
+			               sizeof(struct pseudohdr) + sizeof(struct tcphdr) + post_payload_size);// checksum field in tcp_header
+
 			
 			// line
 			print_chars('\t',6);
 			
 			// IP header setting
-			iphdr->version = 4;
-			iphdr->ihl = 5;
-			iphdr->protocol = IPPROTO_TCP;
-			iphdr->tot_len = htons(40 + post_payload_size);
-			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id + htons(1);
+			iphdr->version = 4;// version field in ip_header
+			iphdr->ihl = 5;// IHL field in ip_header
+			iphdr->protocol = IPPROTO_TCP;// protocol field in ip_header(reset)
+			iphdr->tot_len = htons(40 + post_payload_size);// total length field in ip_header
+			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id + htons(1);//identification field in ip_header(increase 1)
 			
 			// 0x40 -> don't use flag
-			memset( (char*)iphdr + 6 ,  0x40  , 1 );
-			iphdr->ttl = 60;
-			iphdr->saddr = source_address.s_addr;
-			iphdr->daddr = dest_address.s_addr;
+			memset( (char*)iphdr + 6 ,  0x40  , 1 );// IP_flags field in ip_header
+			iphdr->ttl = 60;// TTL field in ip_header(reset)
+			iphdr->saddr = source_address.s_addr;// src_ip field in ip_header(change value)
+			iphdr->daddr = dest_address.s_addr;// dst_ip field in ip_header(change value)
 			
 			// calculate IP header checksum
-			iphdr->check = in_cksum( (u_short *)iphdr, sizeof(struct iphdr));
+			iphdr->check = in_cksum( (u_short *)iphdr, sizeof(struct iphdr));// checksum field in ip_header(reset)
 			
 			// for sendto
 			address.sin_family = AF_INET;
