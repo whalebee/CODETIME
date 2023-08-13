@@ -784,28 +784,31 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 
 		// compare---------------------------------
 		for(int i = 0; i < 100; i++ ) {
-
+		
+			
+			
 			// if you knew str_len, you choice method like this
-			int str1_len = strlen( &domain_arr[i][0] ); // block list
-			int str2_len = strlen( domain_str );		// domain_string
+			str1_len = strlen( &domain_arr[i][0] ); // block list
+			
+			printf("%d : %s\n", str1_len, domain_arr[i]);
+			printf("%d\n", str2_len);
+			
+			// break if meet NULL data in array .
+			if(str1_len == 0) 
+				break; 
 			
 			if( str1_len != str2_len ) {
 				continue; // move to next array .
 			}
+			
 
 			cmp_ret = strcmp( &domain_arr[i][0], domain_str );
 			
-			// if each other string is same length but not same string, so break
-			if( cmp_ret < 0 ) break; 
-			printf("DEBUG: domain name check result : %d \n", cmp_ret);
 
 			if( cmp_ret == 0 )
 				break;
 			
-			// break if meet NULL data in array .
-			if( strlen( &domain_arr[0][i] ) == 0 ) 
-				break; 
-		} 
+		}  
 
 		// block or allow
 		if( cmp_ret == 0 ) {
@@ -856,7 +859,7 @@ void mysql_insert(u_char* domain_str)
 void mysql_select_log()
 {
 	char query[DOMAIN_BUF] = { 0x00 }; // DOMAIN_BUF 1048576
-	sprintf(query, "SELECT * FROM tb_packet_log");
+	sprintf(query, "SELECT * FROM tb_packet_log ORDER BY created_at DESC LIMIT 10");
 	
 	res = mysql_perform_query(connection, query);
 
@@ -864,8 +867,8 @@ void mysql_select_log()
 	int cnt = 1;
 	
 	while( (row = mysql_fetch_row(res) ) != NULL){
-		printf("Mysql contents in tb_packet_log [ %d ] \n", cnt++);
-		printf(" src_ip: %20s | ", row[1]); // row[0] -> id
+		printf("Mysql contents in tb_packet_log [ row : %d ] [ id : %s ] \n", cnt++, row[0]);
+		printf(" src_ip: %20s | ", row[1]);
 		printf(" src_port: %5s | \n", row[2]);
 		printf(" dst_ip: %20s | ", row[3]);
 		printf(" dst_port: %5s | \n", row[4]);
