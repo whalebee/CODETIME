@@ -87,8 +87,8 @@ struct sniff_tcp {
 #define TCP_HDR_SIZE 20
 
 // sendraw
-char if_bind_global[] = "lo" ;
-int if_bind_global_len = 2 ;
+char bind_device_name[] = "lo" ;
+int bind_device_name_len = 2 ;
 int sendraw_mode = 1;
 
 // DB
@@ -334,7 +334,7 @@ int sendraw( u_char* pre_packet, int mode)
 		const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
 
 		u_char packet[1600];
-        int on=1, len ;
+        int IP_HDRINCL_ON=1, len ; 			// len Later .
         struct iphdr *iphdr;
         struct tcphdr *tcphdr;
         struct in_addr source_address, dest_address;
@@ -394,11 +394,11 @@ int sendraw( u_char* pre_packet, int mode)
 			}
 		
 			// IP_HDRINCL option: include IP_Header .
-			setsockopt( raw_socket, IPPROTO_IP, IP_HDRINCL, (char *)&on, sizeof(on)); 
+			setsockopt( raw_socket, IPPROTO_IP, IP_HDRINCL, (char *)&IP_HDRINCL_ON, sizeof(IP_HDRINCL_ON)); 
 
-			if ( if_bind_global != NULL ) {
+			if ( bind_device_name != NULL ) {
 				// i think that ifreq will be use later ( SO_BINDTODEVICE ) .
-				setsockopt_result = setsockopt( raw_socket, SOL_SOCKET, SO_BINDTODEVICE, if_bind_global, if_bind_global_len );
+				setsockopt_result = setsockopt( raw_socket, SOL_SOCKET, SO_BINDTODEVICE, bind_device_name, bind_device_name_len );
 
 				if( setsockopt_result == -1 ) {
 					print_chars('\t',6);
@@ -408,7 +408,7 @@ int sendraw( u_char* pre_packet, int mode)
 				#ifdef SUPPORT_OUTPUT
 				else {
 					print_chars('\t',6);
-					fprintf(stdout,"OK: setsockopt(%s)(%d) - %s\n", if_bind_global, setsockopt_result, strerror(errno));
+					fprintf(stdout,"OK: setsockopt(%s)(%d) - %s\n", bind_device_name, setsockopt_result, strerror(errno));
 				}
 				#endif
 			}
@@ -488,7 +488,7 @@ int sendraw( u_char* pre_packet, int mode)
 			if ( warning_page == 5 ){
 				memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
 			}
-			// ㅎㅎ
+			
 			// renewal after post_payload_size for calculate TCP checksum
 			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
 
