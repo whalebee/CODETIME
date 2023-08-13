@@ -101,9 +101,9 @@ MYSQL_ROW row;
 MYSQL_RES *res_block;
 MYSQL_ROW row_block;
 int cmp_ret = 1; // base: allow
-#define DOMAIN_BUF 1048576
+#define DOMAIN_BUF 260
 #define REC_DOM_MAX 20
-#define REC_DOM_LEN 1048576
+#define REC_DOM_LEN 260
 
 // TCP Header checksum
 struct pseudohdr {
