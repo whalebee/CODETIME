@@ -1,3 +1,7 @@
+// <<<<<<< jihwan
+// test
+// =======
+// >>>>>>> master
 #include <pcap.h>
 #include <stdio.h>
 #include <string.h>
@@ -929,4 +933,3 @@ void print_info(const struct sniff_ethernet *ethernet,
 	
 	// print domain
 	printf("INFO: Domain = %s\n", domain_str);
-}
