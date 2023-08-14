@@ -805,15 +805,9 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 				break; 
 			
 			cmp_ret = strcmp( &domain_arr[i][0], domain_str );
-			
-			// if each other string is same length but not same string, so break
-			if( cmp_ret < 0 ) continue; 
-			printf("DEBUG: domain name check result : %d \n", cmp_ret);
 
 			if( cmp_ret == 0 )
 				break;
-			
-			
 		} 
 
 		// block or allow
