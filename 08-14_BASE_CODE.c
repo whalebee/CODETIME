@@ -789,7 +789,7 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 
 
 		// compare---------------------------------
-		for(int i = 0; i < 100; i++ ) {
+		for(int i = 0; i < REC_DOM_MAX; i++ ) {
 
 			// if you knew str_len, you choice method like this
 			int str1_len = strlen( &domain_arr[i][0] ); // block list
