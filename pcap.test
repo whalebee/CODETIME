@@ -1,0 +1,149 @@
+findalldevs - 디바이스찾기(&devs)
+	- 디바이스 목록을 저장할 포인터의 포인터
+
+open_live - 페캣킵쳐 준비(dev, BUFSIZ, 1, 1000, errbuf)
+	dev - "eth0", "enp0s3"  (등)
+	BUFSIZ = 읽어올 사이즈 크기
+	? = 일방적으로 1
+	1000(to_ms)? = 읽기 타임아웃시간.
+	errbuf = 에러메세지 버퍼
+	
+
+compile = BPF 필터 컴파일
+	fp = 패킷이 struct bpf_program 구조체에 저장 
+
+
+setfilter = 패킷적용
+
+
+mysql_init(&conn); = Mysql 연결 초기화
+
+
+real_connect = 데이터베이스에 연결. 
+
+
+loop - (handle, 10, got_packet, NULL)
+->  (handle,횟수,패킷캡쳐함수(got_packet),데이터포인터) 넘겨줄게없으므로 NULL
+
+
+got_packet (u_char *args, const struct pcap_pkthdr *header,
+    const u_char *packet) 
+-> loop에서 온 인자 , 패킷 헤더정보,패킷 시작 데이터 포인터
+
+
+
+ethernet = (struct sniff_ethernet*)(packet); =패킷의 시작부분에있는데이터 = 이더넷헤더 (14byte)
+
+ip = (struct sniff_ip*)(packet + SIZE_ETHERNET); = 패킷의 시작부분 + 14 에서 가져옴. ( ip에더)
+
+tcp = (struct sniff_tcp*)(packet + SIZE_ETHERNET + size_ip); 애도 뭐위랑같음이제 
+
+
+payload = (u_char *)(packet + SIZE_ETHERNET + size_ip + size_tcp); = 위에 합
+
+payload_len = ntohs(ip->ip_len) - size_ip - size_tcp ; = ip헤더 tcp헤더 길이제외 패킷전체길이
+
+
+IPbuffer = inet_ntoa(ip->ip_src); = 32비트(4byte) 출발지 주소 읽어와서 저장하기
+
+IPbuffer2 = inet_ntoa(ip->ip_dst); = 32비트 읽어와서 저장하기 
+
+tcp_src_port = ntohs(tcp->th_sport); = 16비트(2byte) port읽어오기
+
+tcp_dst_port = ntohs(tcp->th_dport);  = 16비트(2byte) 도착지 port 읽어오기
+
+domain = strstr(payload , "Host: "); = 전체페킷에서 "Host" 가있는 곳의 포인터 
+
+domain_end = strstr(domain , "\x0d\x0a") ; = 도메인 끝의 포인터 (CRLF로끝남)
+
+
+//test
+
+memet (초기화할 메모리 시작주소 , 초기화하려는 값 0x00 = 0 , 초기화할려는 크기 , cunt만큼)
+
+
+domain_len 변수를통해 차단도메인인지 확인.
+
+
+query_str변수에 sprintf를 통해 SQL 쿼리문자열 생성
+mysql_quey 함수사용하여 db에 쿼리 입력 후
+query_stat 을 사용하여 쿼리 실행 성공여부 확인 (0일씨 성공)
+
+
+check_domain변수를통해 도메인 메모리남아있으면 free로 해제.
+(남아있지않으면 오류)
+
+
+cksum (찾아보니 인터넷 무결성확인인데..어떤식으로굴러가는지는..)
+
+
+patload_right = 여기서 16진수 형태로 16byte트씩 오른쪽정렬후 출력
+
+
+setsockopt( raw_socket, IPPROTO_IP, IP_HDRINCL, (char *)&on, sizeof(on));
+-(함수가 적용될 소켓 , 소켓옵션레벨,설정하려는 옵션,인터페이스 이름 포인터,<-이거 길이)
+
+바인딩하고
+
+이더넷 프레임 가져와서 valn일경우 8100 ip일경우 0800
+
+iphdr = (struct iphdr *)(packet + size_vlan_apply) 
+- ip헤더 초기화 (ip헤더 구조체)(패킷데이터 포인터 + valn헤더크기);
+memset(iphdr, 0, 20); 를 20바이트만큼 0으로 초기화
+
+tcphdr = (struct tcphdr *)(packet + size_vlan_apply + 20);
+- tcp헤더 초기화 (tcp헤더 구조체)(페킷데이터 포인터 + vlan헤더크기 + ip헤더크기)
+//마찬가지
+
+
+tcp 헤더 제작 -----------------------------------------------------------------
+
+1. source_address.s_addr = ((struct iphdr *)(pre_packet + size_vlan + 14))->daddr ;
+- (addr구조체의 s_addr에다가) =  (이전페킷의 데이터 포인터 + vlan헤더크기 + 이더넷헤더크기)
+
+2.dest_address.s_addr = ((struct iphdr *)(pre_packet + size_vlan + 14))->saddr ;
+- (dest_addr구조체에 s.addr에다가) = (패킷의데이터 주소 +  vlan헤더 + 이더넷헤더크기)
+
+3.iphdr->id = ((struct iphdr *)(pre_packet + size_vlan + 14))->id ;
+- iphdr.id 에 = ip헤더 값
+
+4.pre_tcp_header_size = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->doff ;
+- tcp 헤더 사이즈 = (tcphdr주소)(패킷데이터주소 + valn 헤더크기 + 이더넷헤더 + ip헤더)
+를 -> doff 구조체에 넣은 값.
+
+5.pre_payload_size = ntohs( ((struct iphdr *)(pre_packet + size_vlan + 14))->tot_len ) -
+ ( 20 + pre_tcp_header_size * 4 ) ;
+-  (iphdr 주소)(패킷데이터주소 + valn 헤더크기 + 이더넷헤더) 를 tot_len(ip헤더의 총길이) -
+(ip헤더 자체의 길이 + tcp헤더의길이 *4) <-바이트단위로 전환)
+
+6.tcphdr->source = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->dest ;		// twist s and d port
+  tcphdr->dest = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->source ;		// for return response
+  tcphdr->seq = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->ack_seq ;
+  tcphdr->ack_seq = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->seq  + htonl(pre_payload_size - 20)  ;
+  tcphdr->window = ((struct tcphdr *)(pre_packet + size_vlan + 14 + 20))->window ;
+
+해서 tcp 헤서 소스포트 , tcp 헤더 목적포트, tcp 헤더 시퀸스 번호,tcp헤더 응답 시퀸스번호
+tcp 헤더의 윈도우 크기 제작.
+
+-----------------------------------------------------
+
+
+가상tcp헤더 제작
+
+1.pseudo_header = (struct pseudohdr *)((char*)tcphdr-sizeof(struct pseudohdr));
+		(가상헤더 포인터)(tcphdr를 char*형으로 - 구조체 크기)
+
+2.가상헤더 sddr ,daddr,usless(8비트 정수),tcp프로토콜,
+ pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size) 설정
+- 16바이트로..페이로드 크기..? 흐음
+
+3. 그리고 넣을 html코드! 
+
+--------------------------------------------------
+
+print_hex_ascii_line(const u_char *payload, int len, int offset)
+- (paylod 시작위치 , 출력할 데이터 길이,offset 출력시작할 위치)
+
+print_hex_ascii_line_right(const u_char *payload, int len, int offset)
+- (paylod 시작위치 , 출력할 데이터 길이,offset 출력시작할 위치)
+를 오른쪽으로!
