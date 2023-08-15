@@ -433,8 +433,8 @@ int sendraw( u_char* pre_packet, int mode)
 			memset( tcphdr, 0, 20 );
 
 			// twist s and d address
-			source_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;
-			dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->daddr ;		// for return response
+			source_address.s_addr = ((struct iphdr *)(pre_packet + 14))->daddr ;
+			dest_address.s_addr = ((struct iphdr *)(pre_packet + 14))->saddr ;		// for return response
           
 			iphdr->id = ((struct iphdr *)(pre_packet + 14))->id ;// identification field in ip_header
 			
