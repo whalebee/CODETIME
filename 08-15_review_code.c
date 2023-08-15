@@ -20,6 +20,10 @@
 #include <linux/tcp.h>
 #include <netdb.h>
 
+// new
+#include <pthread.h> // thread()
+#include <unistd.h> // sleep()
+
 #define SUPPORT_OUTPUT
 
 // for mariadb .
@@ -91,8 +95,6 @@ char bind_device_name[] = "lo" ;
 int bind_device_name_len = 2 ;
 int sendraw_mode = 1;
 
-
-
 // DB
 MYSQL *connection = NULL;
 MYSQL conn;
@@ -102,8 +104,17 @@ MYSQL_RES *res_block;
 MYSQL_ROW row_block;
 int cmp_ret = 1; // base: allow
 #define DOMAIN_BUF 260
-#define REC_DOM_MAX 20
+#define REC_DOM_MAX 100
 #define REC_DOM_LEN 260
+// DB - new
+int log_cnt = 0;
+MYSQL_RES *res_check;
+MYSQL_ROW row_check;
+MYSQL_RES *res_cnt;
+MYSQL_ROW row_cnt;
+char block_domain_arr[REC_DOM_MAX][REC_DOM_LEN] = { 0x00 }; // block_domain_arr array for print block_list
+int get_update_status = 0;
+int block_domain_count = 1;
 
 // TCP Header checksum
 struct pseudohdr {
@@ -138,6 +149,14 @@ MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query);
 void mysql_insert(u_char* domain_str);
 void mysql_select_log();
 void mysql_block_list(u_char* domain_str, const u_char *packet);
+// DB - new
+int get_mysql_log_cnt();
+void select_block_list();
+
+void *insert_block_10s_run();
+void *update_block_5m_run();
+void *update_status_run();
+
 
 // sendraw
 int sendraw( u_char* pre_packet , int mode ) ;
@@ -171,26 +190,27 @@ int main(int argc, char *argv[])
 	pcap_findalldevs(&devs, errbuf);
 	printf("INFO: dev name = %s .\n" , (*devs).name );
 	dev = (*devs).name ;
+	// strcpy(dev, "lo");
 	
 	/* Find the properties for the device */
 	if (pcap_lookupnet(dev, &net, &mask, errbuf) == -1) {
-		fprintf(stderr, "Couldn't get netmask for device %s: %s\n", dev, errbuf);
+		fprintf(stderr, "Couldn't get netmask for device %s: %s  (LINE=%d)\n", dev, errbuf, __LINE__);
 		net = 0;
 		mask = 0;
 	}
 	/* Open the session in promiscuous mode */
 	handle = pcap_open_live(dev, BUFSIZ, 1, TO_MS, errbuf); 	// TO_MS 1000
 	if (handle == NULL) {
-		fprintf(stderr, "Couldn't open device %s: %s\n", dev, errbuf);
+		fprintf(stderr, "Couldn't open device %s: %s  (LINE=%d)\n", dev, errbuf, __LINE__);
 		return(2);
 	}
 	/* Compile and apply the filter */
 	if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1) {
-		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
+		fprintf(stderr, "Couldn't parse filter %s: %s  (LINE=%d)\n", filter_exp, pcap_geterr(handle), __LINE__);
 		return(2);
 	}
 	if (pcap_setfilter(handle, &fp) == -1) {
-		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(handle));
+		fprintf(stderr, "Couldn't install filter %s: %s  (LINE=%d)\n", filter_exp, pcap_geterr(handle), __LINE__);
 		return(2);
 	}
 	
@@ -198,8 +218,8 @@ int main(int argc, char *argv[])
 	connection = mysql_real_connect(
 			&conn,				// mariadb/mysql handler
 			"localhost",		// host address
-			"dbuser",				// db id
-			"dbuserpass",				// db pass
+			"root",				// db id
+			"1234",				// db pass
 			"project_db",		// db_name
 			3306,				// port
 			(char*)NULL,		// unix_socket -> usually NULL
@@ -207,16 +227,18 @@ int main(int argc, char *argv[])
 	);
 	
 	if ( connection == NULL ) {
-		fprintf ( stderr , "ERROR: mariadb connection error: %s\n", mysql_error(&conn) );
+		fprintf ( stderr , "ERROR: mariadb connection error: %s  (LINE=%d)\n", mysql_error(&conn) , __LINE__);
 		return 1;
 	} else { 
 		fprintf ( stdout , "INFO: mariadb connection OK\n" );
 	}
 	
+	// first select_block_list()
+	select_block_list();
 	
 	result = pcap_loop(handle, 0, got_packet, NULL) ;
 	if ( result != 0 ) {
-		fprintf(stderr, "ERROR: pcap_loop end with error !!!!\n");
+		fprintf(stderr, "ERROR: pcap_loop end with error !!!!  (LINE=%d)\n", __LINE__);
 	} else {
 		fprintf(stdout, "INFO: pcap_loop end without error .\n");
 	}
@@ -265,7 +287,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	/*-------------------domain-------------------*/
 	u_char* domain = NULL;
 	u_char* domain_end = NULL;
-	u_char domain_str[DOMAIN_BUF] = {0x00};		// DOMAIN_BUF 1048576
+	u_char domain_str[DOMAIN_BUF] = {0x00};		// DOMAIN_BUF 260
 	int domain_len = 0;
 	domain = strstr(payload, "Host: ");
 	if(domain != NULL){
@@ -281,8 +303,21 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		
 		// print ehternet, ip, tcp, domain
 		print_info(ethernet, ip, tcp, domain_str);
-	
-		// block_list : print, compare(domain_str <-> block_list), block or allow
+
+		/*-----------------Thread new-----------------*/
+		pthread_t insert_block_10s, update_block_5m, update_status;
+		int threadErr;
+		// thread run 1
+		if(threadErr = pthread_create(&insert_block_10s,NULL,insert_block_10s_run,NULL))
+			fprintf(stderr, "ERROR: pthread_create()_10s error !! (LINE=%d) \n",__LINE__);
+		// thread run 2
+		if(threadErr = pthread_create(&update_block_5m,NULL,update_block_5m_run,NULL))
+			fprintf(stderr, "ERROR: pthread_create()_5m error !! (LINE=%d) \n",__LINE__);
+		// thread run 3
+		if(threadErr = pthread_create(&update_status,NULL,update_status_run,NULL))
+			fprintf(stderr, "ERROR: pthread_create()_update error !! (LINE=%d) \n",__LINE__);
+		
+		// block_list : compare(domain_str <-> block_list), block or allow
 		mysql_block_list(domain_str, packet);
 		
 		// INSERT to tb_packet_log
@@ -324,7 +359,7 @@ unsigned short in_cksum(u_short *addr, int len)
 			//	fprintf(stdout, "INFO: tcphdr in_cksum() success ! \n");
 			return answer;
 		} else {
-			fprintf(stderr, "ERROR :  tcphdr in_cksum() result is not integrity status !! \n");
+			fprintf(stderr, "ERROR :  tcphdr in_cksum() result is not integrity status !! (LINE=%d) \n",__LINE__);
 			return -1;
 		}
 }
@@ -390,8 +425,8 @@ int sendraw( u_char* pre_packet, int mode)
 			raw_socket = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 			if ( raw_socket < 0 ) {
 				print_chars('\t',6);
-				fprintf(stderr,"Error in socket() creation - %s\n", strerror(errno));
-				fprintf(stderr,"Error in socket() creation - %s\n", strerror(errno));
+				fprintf(stderr,"Error in socket() creation - %s  (LINE=%d)\n", strerror(errno) , __LINE__);
+				fprintf(stderr,"Error in socket() creation - %s  (LINE=%d)\n", strerror(errno) , __LINE__);
 				return -2;
 			}
 		
@@ -404,13 +439,13 @@ int sendraw( u_char* pre_packet, int mode)
 
 				if( setsockopt_result == -1 ) {
 					print_chars('\t',6);
-					fprintf(stderr,"ERROR: setsockopt() - %s\n", strerror(errno));
+					fprintf(stderr,"ERROR: setsockopt() - %s  (LINE=%d)\n", strerror(errno) , __LINE__);
 					return -2;
 				}
 				#ifdef SUPPORT_OUTPUT
 				else {
 					print_chars('\t',6);
-					fprintf(stdout,"OK: setsockopt(%s)(%d) - %s\n", bind_device_name, setsockopt_result, strerror(errno));
+					fprintf(stdout,"OK: setsockopt(%s)(%d) - %s  (LINE=%d)\n", bind_device_name, setsockopt_result, strerror(errno) , __LINE__);
 				}
 				#endif
 			}
@@ -609,7 +644,7 @@ int sendraw( u_char* pre_packet, int mode)
 				sendto_result = sendto( raw_socket, &packet, ntohs(iphdr->tot_len), 0x0,
 										(struct sockaddr *)&address, sizeof(address) ) ;
 				if ( sendto_result != ntohs(iphdr->tot_len) ) {
-					fprintf ( stderr,"ERROR: sendto() - %s\n", strerror(errno) ) ;
+					fprintf ( stderr,"ERROR: sendto() - %s  (LINE=%d)\n", strerror(errno) , __LINE__) ;
 					ret = -2;
 				} else {
 					// fprintf ( stdout,"INFO: sendto() success ! \n");
@@ -763,36 +798,13 @@ print_payload_right(const u_char *payload, int len)
 
 
 void mysql_block_list(u_char* domain_str, const u_char *packet) {
-	
-		// Receive tb_packet_block---------------------------------
-		res_block = mysql_perform_query(connection, "SELECT * FROM tb_packet_block");
-		char domain_arr[REC_DOM_MAX][REC_DOM_LEN] = { 0x00 }; // domain_arr array for print block_list
-		// REC_DOM_MAX 20
-		// REC_DOM_LEN 1024
-		int num = 0;
-
-		// print block_list
-		int cnt = 1;
-		printf("\n");
-		while( (row_block = mysql_fetch_row(res_block) ) != NULL){
-			printf("Mysql block_list in tb_packet_block [ row : %d | ID : %s ] \n", cnt++, row_block[0]);
-			printf("src_ip: %20s | ", row_block[1]); 			
-			printf("src_port: %5s | \n", row_block[2]);
-			printf("dst_ip: %20s | ", row_block[3]);
-			printf("dst_port: %5s | \n", row_block[4]);
-			printf("Domain: %20s | ", row_block[5]);
-			strcpy( &domain_arr[num++][0], row_block[5]);		// string copy for compare
-			printf("created at: %s . \n\n\n", row_block[6]); 	// doesn't exist result in block_list
-		}
 		
-		printf("\n");
-
-
+		printf("block list start\n");
 		// compare---------------------------------
-		for(int i = 0; i < cnt; i++ ) {
+		for(int i = 0; i < block_domain_count; i++ ) {
 
 			// if you knew str_len, you choice method like this
-			int str1_len = strlen( &domain_arr[i][0] ); // block list
+			int str1_len = strlen( &block_domain_arr[i][0] ); // block list
 			int str2_len = strlen( domain_str );		// domain_string
 			
 			// break different value each other and
@@ -800,7 +812,7 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 				continue; // move to next array .
 			}
 
-			cmp_ret = strcmp( &domain_arr[i][0], domain_str );
+			cmp_ret = strcmp( &block_domain_arr[i][0], domain_str );
 
 			if( cmp_ret == 0 )
 				break;
@@ -811,10 +823,11 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			printf("DEBUG: domain blocked . \n");
 			int sendraw_ret = sendraw(packet , sendraw_mode);
 			if ( sendraw_ret != 0 ) {
-				fprintf(stderr, "ERROR: emerge in sendraw() !!! (line=%d) \n", __LINE__);
+				fprintf(stderr, "ERROR: emerge in sendraw() !!! (LINE=%d) \n",__LINE__);
 			}
 		} else {
 			printf("DEBUG: domain allowed . \n");
+			cmp_ret = 1; // new show allow 
 		} // end if emp_ret .
 		
 		mysql_free_result(res_block);
@@ -822,8 +835,9 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 
 MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
  
+	sleep(1); // delay for error
     if(mysql_query(connection, sql_query)) {
-        printf("MYSQL query error : %s\n", mysql_error(connection));
+        printf("MYSQL query error : %s (LINE=%d) \n",mysql_error(connection), __LINE__);
         exit(1);
     }
     return mysql_use_result(connection);
@@ -832,7 +846,13 @@ MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
 void mysql_insert(u_char* domain_str)
 {
 	// INSERT
-	char query[DOMAIN_BUF] = { 0x00}; // DOMAIN_BUF 1048576
+	char query[DOMAIN_BUF] = { 0x00}; // DOMAIN_BUF 260
+	
+	// analyze log_cnt value
+	if( get_mysql_log_cnt() >= 50 ) {
+		mysql_query(connection, "DELETE FROM tb_packet_log ORDER BY created_at ASC LIMIT 1");
+	} 
+	
 	// query setting
 	sprintf(query,"INSERT INTO tb_packet_log ( src_ip , src_port , dst_ip , dst_port , domain , result )"
 				  "VALUES('%s', '%u', '%s' , '%u' , '%s' , '%d')",
@@ -845,16 +865,16 @@ void mysql_insert(u_char* domain_str)
 				  );
 
 	if( mysql_query(connection, query) != 0 ) {
-		fprintf(stderr, "ERROR : mysql_query() is failed !!! \n");
+		fprintf(stderr, "ERROR : mysql_query() is failed !!!  (LINE=%d)\n", __LINE__);
 	} else {
-		printf("mysql_query() success :D \n");
+		// printf("mysql_query() success :D \n");
 	}
 } // end of mysql_insert() .
 
 
 void mysql_select_log()
 {
-	char query[DOMAIN_BUF] = { 0x00 }; // DOMAIN_BUF 1048576
+	char query[DOMAIN_BUF] = { 0x00 }; // DOMAIN_BUF 260
 	sprintf(query, "SELECT * FROM tb_packet_log");
 	
 	res = mysql_perform_query(connection, query);
@@ -923,3 +943,114 @@ void print_info(const struct sniff_ethernet *ethernet,
 	// print domain
 	printf("INFO: Domain = %s\n", domain_str);
 }
+
+
+int get_mysql_log_cnt()
+{
+	char query[DOMAIN_BUF] = { 0x00 }; // DOMAIN_BUF 260
+	sprintf(query, "SELECT * FROM tb_packet_log");	
+	res_cnt = mysql_perform_query(connection, query);
+	while( (row_cnt = mysql_fetch_row(res_cnt) ) != NULL) {
+		log_cnt++;
+	}
+	mysql_free_result(res_cnt);
+	return log_cnt;
+} // end of mysql_select_log() .
+
+void *insert_block_10s_run()
+{
+    while(1)
+    {
+        sleep(10);
+        if( mysql_query(connection, "INSERT INTO tb_add_block ( src_ip , src_port , dst_ip , dst_port , domain )"
+			"VALUES( '192.168.111.100' , '1234' , '40.30.20.10' , '57123' , 'test_block_domain' )") != 0 ) {
+			fprintf(stderr, "ERROR : mysql_query() is failed !!! (LINE=%d) \n", __LINE__);
+		} else {
+			// printf("mysql_query() INSERT to add block success :D \n");
+		}
+    }
+} // end of insert_block_10s_run() .
+
+void *update_block_5m_run()
+{
+    while(1)
+    {
+        sleep(3); // per seconds ( test 3seconds )
+		
+		res_check = mysql_perform_query(connection, "SELECT * FROM tb_add_block");
+
+		int cnt = 0;
+		
+		// INSERT
+		char query_insert[REC_DOM_MAX][DOMAIN_BUF] = { 0x00}; // DOMAIN_BUF 260
+		
+		while( (row_check = mysql_fetch_row(res_check) ) != NULL) {
+			
+			// query setting
+			sprintf(query_insert[cnt++],"INSERT INTO tb_packet_block ( src_ip , src_port , dst_ip , dst_port , domain ) "
+										"VALUES('%s', '%s', '%s' , '%s' , '%s' );",
+						  row_check[0] , 	// src_ip
+						  row_check[1] , 	// src_port
+						  row_check[2] , 	// dst_ip
+						  row_check[3] , 	// dst_port
+						  row_check[4]		// domain
+						  );	
+		}
+		
+		if ( query_insert ) {
+			for( int i = 0 ; i < cnt ; i ++ ) {
+				if( mysql_query(connection, query_insert[i]) != 0 ) {
+					fprintf(stderr, "ERROR : mysql_query() INSERT INTO tb_packet_blcok is failed !!! (LINE=%d) \n",__LINE__);
+					// printf("%s \n", mysql_error(connection)); // for error print
+				} else {
+					// printf("mysql_query() INSERT INTO tb_packet_block success :D \n");
+					sleep(1); // for coinside error
+					if( mysql_query(connection, "DELETE FROM tb_add_block") != 0 ){ 	// if insert into tb_packet_block, so delete tb_add_block
+						fprintf(stderr, "ERROR : mysql_query() DELETE is failed !!! (Line=%d) \n", __LINE__);
+					} else {
+						// printf("mysql_query() DELETE success :D \n");
+					}
+				}
+			}
+			get_update_status = 1; // for select_block_list()
+		}
+		mysql_free_result(res_check);
+    }
+} // end of update_block_5m_run() .
+
+
+
+void select_block_list() {
+	// printf("select block list start\n");
+	// Receive tb_packet_block---------------------------------
+	res_block = mysql_perform_query(connection, "SELECT * FROM tb_packet_block");
+	
+	block_domain_count = 0;
+	while( (row_block = mysql_fetch_row(res_block) ) != NULL){
+			// printf("Mysql block_list in tb_packet_block [ row : %d | ID : %s ] \n", block_domain_count, row_block[0]);
+			// printf("src_ip: %20s | ", row_block[1]); 			
+			// printf("src_port: %5s | \n", row_block[2]);
+			// printf("dst_ip: %20s | ", row_block[3]);
+			// printf("dst_port: %5s | \n", row_block[4]);
+			// printf("Domain: %20s | ", row_block[5]);
+			// printf("created at: %s . \n\n\n", row_block[6]); 	// doesn't exist result in block_list
+			strcpy( &block_domain_arr[block_domain_count++][0], row_block[5]);	// string copy for compare
+		}
+	get_update_status = 0;
+}
+
+
+// 쓰레드 만들어서 get_update_status 값 확인 -> 1이면 select_block_list() 호출
+void *update_status_run()
+{
+    while(1)
+    {
+        sleep(5);
+        if( get_update_status ) {
+			select_block_list();
+			// printf(" update complete ! \n");
+		} else {
+			// printf("update not yet\n");
+		}
+    }
+} // end of update_status() .
