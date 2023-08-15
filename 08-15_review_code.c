@@ -829,8 +829,6 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			printf("DEBUG: domain allowed . \n");
 			cmp_ret = 1; // new show allow 
 		} // end if emp_ret .
-		
-		mysql_free_result(res_block);
 } // end of mysql_block_list() .
 
 MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
@@ -961,7 +959,7 @@ void *insert_block_10s_run()
 {
     while(1)
     {
-        sleep(10);
+        sleep(60);
         if( mysql_query(connection, "INSERT INTO tb_add_block ( src_ip , src_port , dst_ip , dst_port , domain )"
 			"VALUES( '192.168.111.100' , '1234' , '40.30.20.10' , '57123' , 'test_block_domain' )") != 0 ) {
 			fprintf(stderr, "ERROR : mysql_query() is failed !!! (LINE=%d) \n", __LINE__);
@@ -975,7 +973,7 @@ void *update_block_5m_run()
 {
     while(1)
     {
-        sleep(3); // per seconds ( test 3seconds )
+        sleep(30); // per seconds ( test 3seconds )
 		
 		res_check = mysql_perform_query(connection, "SELECT * FROM tb_add_block");
 
@@ -1040,12 +1038,12 @@ void select_block_list() {
 }
 
 
-// 쓰레드 만들어서 get_update_status 값 확인 -> 1이면 select_block_list() 호출
+// if get_update_status == 1 -> select_block_list()
 void *update_status_run()
 {
     while(1)
     {
-        sleep(5);
+        sleep(40);
         if( get_update_status ) {
 			select_block_list();
 			// printf(" update complete ! \n");
