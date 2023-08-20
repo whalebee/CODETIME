@@ -15,11 +15,13 @@ module.exports = {
     </body>
     </html>
     `;
-  },list:function(filelist){
+  },
+  list:function(filelist){
     var list = '<ul>';
     var i = 0;
+    console.log(filelist.length);
     while(i < filelist.length){
-      list = list + `<li><a href="/?id=${filelist[i]}">${filelist[i]}</a></li>`;
+      list = list + `<li><a href="/?id=${filelist[i].id}">${filelist[i].title}</a></li>`;
       i = i + 1;
     }
     list = list+'</ul>';
