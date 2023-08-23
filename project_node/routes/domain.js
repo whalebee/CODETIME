@@ -8,17 +8,13 @@ var bodyParser = require('body-parser');
 
 router.use(bodyParser.urlencoded({ extended: false }))
 
-//게시판 페이징
-
+// board pasing
 router.get("/pasing/:cur", function (req, res) {
 
-    //페이지당 게시물 수 : 한 페이지 당 10개 게시물
-    var page_size = 10;
-    //페이지의 갯수 : 1 ~ 10개 페이지
-    var page_list_size = 10;
-    //limit 변수
-    var no = "";
-    //전체 게시물의 숫자
+    
+    var page_size = 10; // 페이지 장수
+    var page_list_size = 10; // 리스트 개수
+    var no = ""; // LIMIT variable
     var totalPageCount = 0;
 
     var queryString = 'SELECT count(*) AS cnt FROM tb_packet_block'
@@ -27,27 +23,23 @@ router.get("/pasing/:cur", function (req, res) {
             console.log(error2 + "mysql_error() main page");
             return
         }
-        //전체 게시물의 숫자
+        
         totalPageCount = data[0].cnt
 
-        //현제 페이지 
         var curPage = req.params.cur;
 
         console.log("현재 페이지 : " + curPage, "전체 페이지 : " + totalPageCount);
 
-        //전체 페이지 갯수
         if (totalPageCount < 0) {
             totalPageCount = 0
         }
 
-        var totalPage = Math.ceil(totalPageCount / page_size);// 전체 페이지수
-        var totalSet = Math.ceil(totalPage / page_list_size); //전체 세트수         
-        var curSet = Math.ceil(curPage / page_list_size) // 현재 셋트 번호
-        var startPage = ((curSet - 1) * 10) + 1 //현재 세트내 출력될 시작 페이지
-        var endPage = (startPage + page_list_size) - 1; //현재 세트내 출력될 마지막 페이지
+        var totalPage = Math.ceil(totalPageCount / page_size);
+        var totalSet = Math.ceil(totalPage / page_list_size);        
+        var curSet = Math.ceil(curPage / page_list_size) 
+        var startPage = ((curSet - 1) * 10) + 1 
+        var endPage = (startPage + page_list_size) - 1; 
 
-
-        //현재페이지가 0 보다 작으면
         if (curPage < 0) {
             no = 0
         } else {
