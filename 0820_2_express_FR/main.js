@@ -22,6 +22,11 @@ app.get('/page/:pageId/:chapterId', function(request, response) {
   response.send(request.params);
 });
  
+app.get('/temp', function(request, response) { 
+  response.sendFile( __dirname + "/temp" + '/index.html')
+});
+
+
 app.listen(3000, function() {
   console.log('Example app listening on port 3000!')
 });
