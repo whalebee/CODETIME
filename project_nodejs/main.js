@@ -12,7 +12,7 @@ db.connect();
 
 
 var app = http.createServer(function(request,response) {
-    // 아 ~ 이거 언제 다하징 ㅋ.ㅋ
+    // 아 ~dd 이거 언제 다하징 ㅋ.ㅋ
 
 
 });
