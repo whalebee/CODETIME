@@ -10,16 +10,16 @@
 	<table border="1" style="width:600px">
 		<caption>게시판</caption>
 		<colgroup>
-			<col width='10%' />
+			<col width='8%' />
 			<col width='*%' />
 			<col width='15%' />
 			<col width='15%' />
 		</colgroup>
 		<thead>
 			<tr>
-				<th>아이디</th> 
-				<th>도메인</th>
-				<th>포트번호</th>
+				<th>번호</th> 
+				<th>제목</th>
+				<th>등록자</th>
 				<th>등록일</th>
 			</tr>
 		</thead>
@@ -28,11 +28,10 @@
 			 for(var i=0; i<rows.length; i++) {
 		%>
 			<tr>
-				<td><%=rows[i].id %></td>
-				<!-- <td><a href='/board1/read?brdno=<%=rows[i].BRDNO%>'><%=rows[i].BRDTITLE%></a></td> -->
-				<td><%=rows[i].domain%></td>
-				<td><%=rows[i].dst_port%></td>
-				<td><%=rows[i].created_at%></td>
+				<td><%=rows[i].BRDNO%></td>
+				<td><a href='/board1/read?brdno=<%=rows[i].BRDNO%>'><%=rows[i].BRDTITLE%></a></td>
+				<td><%=rows[i].BRDWRITER%></td>
+				<td><%=rows[i].BRDDATE%></td>
 			</tr>
 		<%
 			 }

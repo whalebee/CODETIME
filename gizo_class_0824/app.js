@@ -45,8 +45,4 @@ app.use(function(err, req, res, next) {
   res.render('error');
 });
 
-app.listen(5050, () => {
-  console.log("GOGO 5050");
-});
-
 module.exports = app;

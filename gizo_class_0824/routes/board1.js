@@ -17,11 +17,11 @@ router.get('/', function(req, res, next) {
 
 router.get('/list', function(req,res,next){
     pool.getConnection(function (err, connection) {
-        var sql = "SELECT id, domain, dst_port, DATE_FORMAT(created_at,'%Y-%m-%d') created_at" +
-                   " FROM tb_packet_block";
+        var sql = "SELECT BRDNO, BRDTITLE, BRDWRITER, DATE_FORMAT(BRDDATE,'%Y-%m-%d') BRDDATE" +
+                   " FROM TBL_BOARD";
         connection.query(sql, function (err, rows) {
             if (err) console.error("err : " + err);
-            console.log("rows : " + JSON.stringify(rows));
+//            console.log("rows : " + JSON.stringify(rows));
 
             res.render('board1/list', {rows: rows?rows:{}});
             connection.release();
