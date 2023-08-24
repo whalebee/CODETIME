@@ -33,25 +33,25 @@
       </thead>
       <tbody>
 
-        <% data.forEach(function (item,index){ %>
+        <% data.forEach(function (row,index){ %>
           <tr>
             <td>
-              <%= item.id %>
+              <%= row.id %>
             </td>
             <td>
-              <a href='/detail/<%= item.id %>'><%= item.domain %></a>
+              <a href='/detail/<%= item.id %>'><%= row.domain %></a>
             </td>
             <td>
-              <%= item.dst_port %>
+              <%= row.dst_port %>
             </td>
             <td>
-                <%= item.created_at %>
+                <%= row.created_at %>
             </td>
             <td>
-              <a href="/delete/<%= item.id %>">삭제</a>
+              <a href="/delete/<%= row.id %>">삭제</a>
             </td>
             <td>
-              <a href="/edit/<%= item.id %>">수정</a>
+              <a href="/edit/<%= row.id %>">수정</a>
             </td>
           </tr>
           <% })%>
