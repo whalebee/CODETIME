@@ -1,19 +1,20 @@
+const path = require('path');
+
 module.exports = {
     HTML: function (title, body, authStatusUI) {
       return `
       <!doctype html>
       <html>
       <head>    
-        <title>Login TEST - ${title}</title>
+        <title>Check Login - ${title}</title>
         <meta charset="utf-8">
         <style>
           @import url(http://fonts.googleapis.com/earlyaccess/notosanskr.css);
   
           body {
               font-family: 'Noto Sans KR', sans-serif;
-              background-color: #AAA2C2;
+              background-color: #6A679E;
               margin: 50px;
-  
           }
   
           .background {
@@ -53,7 +54,7 @@ module.exports = {
           .btn {            
               border: none;
               width: 75%;
-              background-color: #6A679E;
+              background-color: #0d61ae;
               color: white;
               padding: 15px 0;
               font-weight: 600;
@@ -70,6 +71,8 @@ module.exports = {
         <div class="background">
           ${authStatusUI}
           ${body}
+        </div>
+        <div>
         </div>
       </body>
       </html>

@@ -409,7 +409,6 @@
           <th>출발지 IP</th>
           <th>도착지 IP</th>
           <th>삭제</th>
-          <th>수정</th>
         </tr>
       </thead>
       <tbody>
@@ -420,7 +419,7 @@
               <%= row.id %>
             </td>
             <td>
-              <a href='/detail/<%= row.id %>'><%= row.domain %></a>
+              <a href='/detail_log/<%= row.id %>'><%= row.domain %></a>
             </td>
             <td>
                 <%= row.created_at %>
@@ -432,10 +431,7 @@
               <%= row.dst_ip %>
             </td>
             <td>
-              <a href="/delete/<%= row.id %>">삭제</a>
-            </td>
-            <td>
-              <a href="/edit/<%= row.id %>">수정</a>
+              <a href="/delete_log/<%= row.id %>">삭제</a>
             </td>
           </tr>
           <% })%>

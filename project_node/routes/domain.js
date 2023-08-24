@@ -7,6 +7,7 @@ var bodyParser = require('body-parser');
 
 var authCheck = require('../lib_login/authCheck.js');
 var template = require('../lib_login/template.js');
+var db = require('../lib_login/db.js');
 
 
 router.use(bodyParser.urlencoded({ extended: false }))
@@ -21,7 +22,7 @@ router.get("/pasing/:cur", function (req, res) {
     var totalPageCount = 0;
 
     var queryString = 'SELECT count(*) AS cnt FROM tb_packet_block'
-    getConnection().query(queryString, function (error2, data) {
+    db.query(queryString, function (error2, data) {
         if (error2) {
             console.log(error2 + "mysql_error() main page");
             return
@@ -29,10 +30,10 @@ router.get("/pasing/:cur", function (req, res) {
         
         totalPageCount = data[0].cnt
  
-        console.log(req.params);
+        // console.log(req.params);
         var curPage = req.params.cur;
 
-        console.log("현재 페이지 : " + curPage, "전체 페이지 : " + totalPageCount);
+        // console.log("현재 페이지 : " + curPage, "전체 페이지 : " + totalPageCount);
 
         if (totalPageCount < 0) {
             totalPageCount = 0
@@ -81,11 +82,11 @@ router.get("/pasing/:cur", function (req, res) {
                 console.log("ejs오류" + error);
                 return
             }
-            console.log("몇번부터 몇번까지냐~~~~~~~" + no)
+            // console.log("몇번부터 몇번까지냐~~~~~~~" + no)
 
             var queryString = "SELECT *, DATE_FORMAT(created_at,'%Y년-%m월-%d일-%H시-%i분') created_at FROM tb_packet_block ORDER BY created_at DESC LIMIT ?,?";
             
-            getConnection().query(queryString, [no, page_size], function (error, result) {
+            db.query(queryString, [no, page_size], function (error, result) {
                 if (error) {
                     console.log("페이징 에러" + error);
                     return
@@ -109,13 +110,13 @@ router.get("/pasing/:cur", function (req, res) {
 router.get("/pasing_log/:cur", function (req, res) {
 
     
-    var page_size = 10; // 페이지 장수
-    var page_list_size = 10; // 리스트 개수
-    var no = ""; // LIMIT variable
+    var page_size = 10;         // 페이지 장수
+    var page_list_size = 10;    // 리스트 개수
+    var no = "";                // LIMIT variable
     var totalPageCount = 0;
 
     var queryString = 'SELECT count(*) AS cnt FROM tb_packet_log'
-    getConnection().query(queryString, function (error2, data) {
+    db.query(queryString, function (error2, data) {
         if (error2) {
             console.log(error2 + "mysql_error() main page");
             return
@@ -123,10 +124,10 @@ router.get("/pasing_log/:cur", function (req, res) {
         
         totalPageCount = data[0].cnt
  
-        console.log(req.params);
+        // console.log(req.params);
         var curPage = req.params.cur;
 
-        console.log("현재 페이지 : " + curPage, "전체 페이지 : " + totalPageCount);
+        // console.log("현재 페이지 : " + curPage, "전체 페이지 : " + totalPageCount);
 
         if (totalPageCount < 0) {
             totalPageCount = 0
@@ -175,11 +176,11 @@ router.get("/pasing_log/:cur", function (req, res) {
                 console.log("ejs오류" + error);
                 return
             }
-            console.log("몇번부터 몇번까지냐~~~~~~~" + no)
+            // console.log("몇번부터 몇번까지냐~~~~~~~" + no)
 
             var queryString = "SELECT *, DATE_FORMAT(created_at,'%Y년-%m월-%d일-%H시-%i분') created_at FROM tb_packet_log ORDER BY created_at DESC LIMIT ?,?";
             
-            getConnection().query(queryString, [no, page_size], function (error, result) {
+            db.query(queryString, [no, page_size], function (error, result) {
                 if (error) {
                     console.log("페이징 에러" + error);
                     return
@@ -213,31 +214,30 @@ router.get('/', (req, res) => {
         <p>로그인에 성공하셨습니다.</p>`,
     authCheck.statusUI(req, res)
   );
-  // res.send(html);
-  // app.use(domainRouter);
+  
   res.redirect('/pasing_log/1');
 })
-// main
-// router.get("/", function (req, res) {
 
-//     console.log("main")
-
-//     res.redirect('/pasing_log/' + 1) // log ? block ? -> select log ㄱㄱ
-// });
-
-// login
-
-
-
-// delete
+// delete_block
 router.get("/delete/:id", function (req, res) {
-    console.log("delete starting")
+    console.log("block delete starting")
 
-    getConnection().query('DELETE FROM tb_packet_block WHERE id = ?', [req.params.id], function () {
-        res.redirect('/')
+    db.query('DELETE FROM tb_packet_block WHERE id = ?', [req.params.id], function () {
+        res.redirect('/pasing/1')
     });
 
 })
+
+// delete_log
+router.get("/delete_log/:id", function (req, res) {
+    console.log("log delete starting")
+
+    db.query('DELETE FROM tb_packet_log WHERE id = ?', [req.params.id], function () {
+        res.redirect('/pasing_log/1')
+    });
+
+})
+
 // insert
 router.get("/insert", function (req, res) {
     console.log("insert starting")
@@ -251,17 +251,18 @@ router.get("/insert", function (req, res) {
 router.post("/insert", function (req, res) {
     console.log("insert post starting")
     var body = req.body;
-    getConnection().query('INSERT INTO tb_packet_block (domain,dst_port) values (?,?)', [body.domain, body.dst_port], function () {
-        res.redirect('/');
+    db.query('INSERT INTO tb_packet_block (domain,comment) values (?,?)', [body.domain, body.comment], function () {
+        res.redirect('/pasing/1');
     })
 
 })
+
 // edit
 router.get("/edit/:id", function (req, res) {
     console.log("edit starting")
 
     fs.readFile('crud/edit.html', 'utf-8', function (error, data) {
-        getConnection().query('SELECT * FROM tb_packet_block WHERE id = ?', [req.params.id], function (error, result) {
+        db.query('SELECT * FROM tb_packet_block WHERE id = ?', [req.params.id], function (error, result) {
             console.log(result[0]);
             res.send(ejs.render(data, {
                 data: result[0]
@@ -275,19 +276,19 @@ router.get("/edit/:id", function (req, res) {
 router.post("/edit/:id", function (req, res) {
     console.log("edit post starting")
     var body = req.body;
-    getConnection().query('UPDATE tb_packet_block SET domain = ?, dst_port = ? where id = ?',
-        [body.domain, body.dst_port, req.params.id], function () {
-            res.redirect('/')
+    db.query('UPDATE tb_packet_block SET domain = ?, comment = ? where id = ?',
+        [body.domain, body.comment, req.params.id], function () {
+            res.redirect('/pasing/1')
         })
 })
 
 
 // detail
 router.get("/detail/:id", function (req, res) {
-    console.log("detail starting")
+    // console.log("block_detail starting")
 
     fs.readFile('crud/detail.html', 'utf-8', function (error, data) {
-        getConnection().query("SELECT *, DATE_FORMAT(created_at,'%Y년-%m월-%d일-%H시-%i분') created_at FROM tb_packet_block WHERE id = ?", [req.params.id], function (error, result) {
+        db.query("SELECT *, DATE_FORMAT(created_at,'%Y년-%m월-%d일-%H시-%i분') created_at FROM tb_packet_block WHERE id = ?", [req.params.id], function (error, result) {
             res.send(ejs.render(data, {
                 data: result[0]
             }))
@@ -295,21 +296,19 @@ router.get("/detail/:id", function (req, res) {
     });
 })
 
+// detail log
+router.get("/detail_log/:id", function (req, res) {
+    console.log("log_detail starting")
 
-
-
-//mysql db log in
-var pool = mysql.createPool({
-    connectionLimit: 10,
-    host: '192.168.111.12',
-    user: 'dbuser',
-    database: 'project_db',
-    password: 'dbuserpass'
+    fs.readFile('crud/detail.html', 'utf-8', function (error, data) {
+        console.log(req.params.id);
+        db.query("SELECT *, DATE_FORMAT(created_at,'%Y년-%m월-%d일-%H시-%i분') created_at FROM tb_packet_log WHERE id = ?", [req.params.id], function (error, result) {
+            console.log(result[0]);
+            res.send(ejs.render(data, {
+                data: result[0]
+            }))
+        })
+    });
 })
-
-//DB connect
-function getConnection() {
-    return pool
-}
 
 module.exports = router
