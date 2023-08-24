@@ -5,6 +5,9 @@ var fs = require('fs')
 var ejs = require('ejs')
 var bodyParser = require('body-parser');
 
+var authCheck = require('../lib_login/authCheck.js');
+var template = require('../lib_login/template.js');
+
 
 router.use(bodyParser.urlencoded({ extended: false }))
 
@@ -196,11 +199,35 @@ router.get("/pasing_log/:cur", function (req, res) {
 })
 
 
+
+
+// 메인 페이지
+router.get('/', (req, res) => {
+  if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    res.redirect('/auth/login');
+    return false;
+  }
+  var html = template.HTML('Welcome',
+    `<hr>
+        <h2>메인 페이지에 오신 것을 환영합니다</h2>
+        <p>로그인에 성공하셨습니다.</p>`,
+    authCheck.statusUI(req, res)
+  );
+  // res.send(html);
+  // app.use(domainRouter);
+  res.redirect('/pasing_log/1');
+})
 // main
-router.get("/", function (req, res) {
-    console.log("main")
-    res.redirect('/pasing_log/' + 1) // log ? block ? -> select log ㄱㄱ
-});
+// router.get("/", function (req, res) {
+
+//     console.log("main")
+
+//     res.redirect('/pasing_log/' + 1) // log ? block ? -> select log ㄱㄱ
+// });
+
+// login
+
+
 
 // delete
 router.get("/delete/:id", function (req, res) {
