@@ -112,7 +112,6 @@ MYSQL_ROW row_check;
 MYSQL_RES *res_cnt;
 MYSQL_ROW row_cnt;
 char block_domain_arr[REC_DOM_MAX][REC_DOM_LEN] = { 0x00 }; // block_domain_arr array for print block_list
-int get_update_status = 0;
 int block_domain_count = 1;
 
 // TCP Header checksum
@@ -152,7 +151,6 @@ void mysql_block_list(u_char* domain_str, const u_char *packet);
 int get_mysql_log_cnt();
 void select_block_list();
 void *update_block_5m_run();
-void *update_status_run();
 
 
 // sendraw
@@ -309,14 +307,11 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		// print_info(ethernet, ip, tcp, domain_str);
 
 		/*-----------------Thread new-----------------*/
-		pthread_t insert_block_10s, update_block_5m, update_status;
+		pthread_t update_block_5m;
 		int threadErr;
 		// thread run 1
 		if(threadErr = pthread_create(&update_block_5m,NULL,update_block_5m_run,NULL))
 			fprintf(stderr, "ERROR: pthread_create()_5m error !! (LINE=%d) \n",__LINE__);
-		// thread run 2
-		if(threadErr = pthread_create(&update_status,NULL,update_status_run,NULL))
-			fprintf(stderr, "ERROR: pthread_create()_update error !! (LINE=%d) \n",__LINE__);
 		
 		// block_list : compare(domain_str <-> block_list), block or allow
 		mysql_block_list(domain_str, packet);
@@ -514,7 +509,7 @@ int sendraw( u_char* pre_packet, int mode)
 						"</head>\r\n"
 						"<body>\r\n"
 						"<center>\r\n"
-						"<img   src=\"http://192.168.111.6/warning.jpg\" alter=\"*WARNING*\">\r\n"
+						"<img   src=\"http://127.0.0.1/warning.jpg\" alter=\"*WARNING*\">\r\n"
 						"<h1>SITE BLOCKED</h1>\r\n"
 						"</center>\r\n"
 						"</body>\r\n"
@@ -966,47 +961,9 @@ void *update_block_5m_run()
 {
     while(1)
     {
-        sleep(30); // per seconds ( test 3seconds )
-		
-		res_check = mysql_perform_query(connection, "SELECT * FROM tb_add_block");
-
-		int cnt = 0;
-		
-		// INSERT
-		char query_insert[REC_DOM_MAX][DOMAIN_BUF] = { 0x00}; // DOMAIN_BUF 260
-		
-		while( (row_check = mysql_fetch_row(res_check) ) != NULL) {
-			
-			// query setting
-			sprintf(query_insert[cnt++],"INSERT INTO tb_packet_block ( src_ip , src_port , dst_ip , dst_port , domain ) "
-										"VALUES('%s', '%s', '%s' , '%s' , '%s' );",
-						  row_check[0] , 	// src_ip
-						  row_check[1] , 	// src_port
-						  row_check[2] , 	// dst_ip
-						  row_check[3] , 	// dst_port
-						  row_check[4]		// domain
-						  );	
-		}
-		
-		if ( query_insert ) {
-			for( int i = 0 ; i < cnt ; i ++ ) {
-				if( mysql_query(connection, query_insert[i]) != 0 ) {
-					fprintf(stderr, "ERROR : mysql_query() INSERT INTO tb_packet_blcok is failed !!! (LINE=%d) \n",__LINE__);
-					// printf("%s \n", mysql_error(connection)); // for error print
-				} else {
-					printf("mysql_query() INSERT INTO tb_packet_block success :D \n");
-					sleep(1); // for coinside error
-					if( mysql_query(connection, "DELETE FROM tb_add_block") != 0 ){ 	// if insert into tb_packet_block, so delete tb_add_block
-						fprintf(stderr, "ERROR : mysql_query() DELETE is failed !!! (Line=%d) \n", __LINE__);
-					} else {
-						// printf("mysql_query() DELETE success :D \n");
-					}
-				}
-			}
-			get_update_status = 1; // for select_block_list()
-		}
-		mysql_free_result(res_check);
-    }
+        sleep(300); // per seconds ( test 3seconds 	)
+		select_block_list();
+	}
 } // end of update_block_5m_run() .
 
 
@@ -1027,22 +984,4 @@ void select_block_list() {
 			// printf("created at: %s . \n\n\n", row_block[6]); 	// doesn't exist result in block_list
 			strcpy( &block_domain_arr[block_domain_count++][0], row_block[5]);	// string copy for compare
 		}
-	get_update_status = 0;
 }
-
-
-// if get_update_status == 1 -> select_block_list()
-void *update_status_run()
-{
-    while(1)
-    {
-        sleep(40);
-        if( get_update_status ) {
-			select_block_list();
-			// printf(" update complete ! \n");
-		} else {
-			// printf("update not yet\n");
-		}
-		get_update_status = 0;
-    }
-} // end of update_status() .
