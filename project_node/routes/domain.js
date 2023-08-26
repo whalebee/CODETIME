@@ -178,7 +178,7 @@ router.get("/pasing_log/:cur", function (req, res) {
             }
             // console.log("몇번부터 몇번까지냐~~~~~~~" + no)
 
-            var queryString = "SELECT *, DATE_FORMAT(created_at,'%Y년-%m월-%d일-%H시-%i분') created_at FROM tb_packet_log ORDER BY created_at DESC LIMIT ?,?";
+            var queryString = "SELECT *, DATE_FORMAT(created_at,'%Y년-%m월-%d일-%H시-%i분') created_at FROM tb_packet_log ORDER BY id DESC LIMIT ?,?";
             
             db.query(queryString, [no, page_size], function (error, result) {
                 if (error) {
