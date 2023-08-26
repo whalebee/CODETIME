@@ -15,6 +15,12 @@ router.use(bodyParser.urlencoded({ extended: false }))
 // board pasing
 router.get("/pasing/:cur", function (req, res) {
 
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
+    
     
     var page_size = 10; // 페이지 장수
     var page_list_size = 10; // 리스트 개수
@@ -109,7 +115,12 @@ router.get("/pasing/:cur", function (req, res) {
 // board log
 router.get("/pasing_log/:cur", function (req, res) {
 
-    
+
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
     var page_size = 10;         // 페이지 장수
     var page_list_size = 10;    // 리스트 개수
     var no = "";                // LIMIT variable
@@ -208,18 +219,18 @@ router.get('/', (req, res) => {
     res.redirect('/auth/login');
     return false;
   }
-  var html = template.HTML('Welcome',
-    `<hr>
-        <h2>메인 페이지에 오신 것을 환영합니다</h2>
-        <p>로그인에 성공하셨습니다.</p>`,
     authCheck.statusUI(req, res)
-  );
-  
   res.redirect('/pasing_log/1');
 })
 
 // delete_block
 router.get("/delete/:id", function (req, res) {
+
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
     console.log("block delete starting")
 
     db.query('DELETE FROM tb_packet_block WHERE id = ?', [req.params.id], function () {
@@ -230,6 +241,12 @@ router.get("/delete/:id", function (req, res) {
 
 // delete_log
 router.get("/delete_log/:id", function (req, res) {
+
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
     console.log("log delete starting")
 
     db.query('DELETE FROM tb_packet_log WHERE id = ?', [req.params.id], function () {
@@ -240,6 +257,12 @@ router.get("/delete_log/:id", function (req, res) {
 
 // insert
 router.get("/insert", function (req, res) {
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
+
     console.log("insert starting")
 
     fs.readFile('crud/insert.html', 'utf-8', function (error, data) {
@@ -249,6 +272,12 @@ router.get("/insert", function (req, res) {
 })
 // insert post
 router.post("/insert", function (req, res) {
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
+
     console.log("insert post starting")
     var body = req.body;
     db.query('INSERT INTO tb_packet_block (domain,comment) values (?,?)', [body.domain, body.comment], function () {
@@ -259,6 +288,12 @@ router.post("/insert", function (req, res) {
 
 // edit
 router.get("/edit/:id", function (req, res) {
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
+
     console.log("edit starting")
 
     fs.readFile('crud/edit.html', 'utf-8', function (error, data) {
@@ -274,6 +309,12 @@ router.get("/edit/:id", function (req, res) {
 })
 // edit post
 router.post("/edit/:id", function (req, res) {
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
+
     console.log("edit post starting")
     var body = req.body;
     db.query('UPDATE tb_packet_block SET domain = ?, comment = ? where id = ?',
@@ -285,6 +326,12 @@ router.post("/edit/:id", function (req, res) {
 
 // detail
 router.get("/detail/:id", function (req, res) {
+
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
     // console.log("block_detail starting")
 
     fs.readFile('crud/detail.html', 'utf-8', function (error, data) {
@@ -298,6 +345,11 @@ router.get("/detail/:id", function (req, res) {
 
 // detail log
 router.get("/detail_log/:id", function (req, res) {
+    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+        res.redirect('/auth/login');
+        return false;
+      }
+
     console.log("log_detail starting")
 
     fs.readFile('crud/detail.html', 'utf-8', function (error, data) {
