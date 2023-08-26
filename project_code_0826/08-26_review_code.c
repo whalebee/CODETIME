@@ -234,18 +234,13 @@ int main(int argc, char *argv[])
 	} else { 
 		fprintf ( stdout , "INFO: mariadb connection OK\n" );
 	}
-	
-	
-	
-	// first select_block_list()
-	select_block_list();
 
 	/*-----------------Thread new-----------------*/
-		pthread_t update_block_5m;
-		int threadErr;
-		// thread run 1
-		if(threadErr = pthread_create(&update_block_5m,NULL,update_block_5m_run,NULL))
-			fprintf(stderr, "ERROR: pthread_create()_5m error !! (LINE=%d) \n",__LINE__);
+	pthread_t update_block_5m;
+	int threadErr;
+	// thread run 1
+	if(threadErr = pthread_create(&update_block_5m,NULL,update_block_5m_run,NULL))
+		fprintf(stderr, "ERROR: pthread_create()_5m error !! (LINE=%d) \n",__LINE__);
 	
 	result = pcap_loop(handle, 0, got_packet, NULL) ;
 	if ( result != 0 ) {
@@ -807,7 +802,9 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			// if you knew str_len, you choice method like this
 			int str1_len = strlen( &block_domain_arr[i][0] ); // block list
 			int str2_len = strlen( domain_str );		// domain_string
-			
+			printf("domain domain :  %s \n", domain_str);
+			printf("block domain :  %s \n", &block_domain_arr[i][0]);
+			// printf("block : %s \n",&block_domain_arr[i][0]);
 			// break different value each other and
 			if( str1_len != str2_len && str1_len != 0 ) {
 				continue; // move to next array .
@@ -973,8 +970,8 @@ void *update_block_5m_run()
 {
     while(1)
     {
-        sleep(10); // per seconds ( test 3seconds 	)
 		select_block_list();
+        sleep(10); // per seconds ( test 3seconds 	)
 	}
 } // end of update_block_5m_run() .
 
