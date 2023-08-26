@@ -398,8 +398,8 @@ int sendraw( u_char* pre_packet, int mode)
         int post_payload_size = 0 ;
         int sendto_result = 0 ;
 		int setsockopt_result = 0 ;
-		int prt_sendto_payload = 0 ;
-		int warning_page = 1 ;
+		int prt_sendto_payload = 1 ;
+
 		int ret = 1 ;							
 		int raw_socket, recv_socket;			// recv_socket later .
 		
@@ -420,6 +420,8 @@ int sendraw( u_char* pre_packet, int mode)
 		// int if_bind_len = 0 ; 				// later .
 		// char* ipaddr_str_ptr ; 				// later .
 		
+		//	--------nope--------
+		//	int warning_page = 1 ;
 		
 
 		#ifdef SUPPORT_OUTPUT
@@ -512,34 +514,32 @@ int sendraw( u_char* pre_packet, int mode)
 
 
 			char *fake_packet = 
-						"HTTP/1.1 200 OK\x0d\x0a"
-						"Content-Length: 530\x0d\x0a"
-						"Content-Type: text/html"
-						"\x0d\x0a\x0d\x0a"
-						"<html>\r\n"
-						"<head>\r\n"
-						"<meta charset=\"UTF-8\">\r\n"
-						"<title>\r\n"
-						"CroCheck - WARNING - PAGE\r\n"
-						"SITE BLOCKED - WARNING - \r\n"
-						"</title>\r\n"
-						"</head>\r\n"
-						"<body>\r\n"
-						"<center>\r\n"
-						"<img   src=\"http://127.0.0.1/warning.jpg\" alter=\"*WARNING*\">\r\n"
-						"<h1>SITE BLOCKED</h1>\r\n"
-						"</center>\r\n"
-						"</body>\r\n"
-						"</html>\r\n"
-						;
+					"HTTP/1.1 200 OK\x0d\x0a"
+					"Content-Length: 530\x0d\x0a"
+					"Content-Type: text/html"
+					"\x0d\x0a\x0d\x0a"
+					"<html>\r\n"
+					"<head>\r\n"
+					"<meta charset=\"UTF-8\">\r\n"
+					"<title>\r\n"
+					"CroCheck - WARNING - PAGE\r\n"
+					"SITE BLOCKED - WARNING - \r\n"
+					"</title>\r\n"
+					"</head>\r\n"
+					"<body>\r\n"
+					"<center>\r\n"
+					"<img   src=\"http://127.0.0.1/warning.jpg\" alter=\"*WARNING*\">\r\n"
+					"<h1>SITE BLOCKED</h1>\r\n"
+					"</center>\r\n"
+					"</body>\r\n"
+					"</html>\r\n"
+					;
 			
 			post_payload_size = strlen(fake_packet);
 			
-			// choose output content
-			warning_page = 5; // for test redirecting
-			if ( warning_page == 5 ){
-				memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
-			}
+			
+			memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
+			
 			
 			// renewal after post_payload_size for calculate TCP checksum
 			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
@@ -573,8 +573,6 @@ int sendraw( u_char* pre_packet, int mode)
 			address.sin_port = tcphdr->dest ;
 			address.sin_addr.s_addr = dest_address.s_addr;
 
-			prt_sendto_payload = 1 ;
-		
 			if( prt_sendto_payload == 1 ) {
 
 				#ifdef SUPPORT_OUTPUT
