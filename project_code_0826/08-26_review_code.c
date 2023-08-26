@@ -802,8 +802,11 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			// if you knew str_len, you choice method like this
 			int str1_len = strlen( &block_domain_arr[i][0] ); // block list
 			int str2_len = strlen( domain_str );		// domain_string
+<<<<<<< HEAD
 			printf("domain domain :  %s \n", domain_str);
 			printf("block domain :  %s \n", &block_domain_arr[i][0]);
+=======
+>>>>>>> 07bb9222c352ef32bfd8e15dbf0de8929734041b
 			// printf("block : %s \n",&block_domain_arr[i][0]);
 			// break different value each other and
 			if( str1_len != str2_len && str1_len != 0 ) {
