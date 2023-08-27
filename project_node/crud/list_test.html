@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html >
+<head>
+  <meta charset="UTF-8">
+  <title>코드타임 - 차단 리스트</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <style>
+  @font-face {
+    font-family: 'LotteMartDream';
+    font-style: normal;
+    font-weight: 400;
+    src: url('//cdn.jsdelivr.net/korean-webfonts/1/corps/lottemart/LotteMartDream/LotteMartDreamMedium.woff2') format('woff2'), url('//cdn.jsdelivr.net/korean-webfonts/1/corps/lottemart/LotteMartDream/LotteMartDreamMedium.woff') format('woff');
+  }
+  @font-face {
+    font-family: 'LotteMartDream';
+    font-style: normal;
+    font-weight: 700;
+    src: url('//cdn.jsdelivr.net/korean-webfonts/1/corps/lottemart/LotteMartDream/LotteMartDreamBold.woff2') format('woff2'), url('//cdn.jsdelivr.net/korean-webfonts/1/corps/lottemart/LotteMartDream/LotteMartDreamBold.woff') format('woff');
+  }
+  @font-face {
+    font-family: 'LotteMartDream';
+    font-style: normal;
+    font-weight: 300;
+    src: url('//cdn.jsdelivr.net/korean-webfonts/1/corps/lottemart/LotteMartDream/LotteMartDreamLight.woff2') format('woff2'), url('//cdn.jsdelivr.net/korean-webfonts/1/corps/lottemart/LotteMartDream/LotteMartDreamLight.woff') format('woff');
+  }
+  html {
+    font-family: 'LotteMartDream', sans-serif;
+  }
+  
+  /* 노말라이즈 */
+  body, ul, li, h1, h2, h3 {
+    margin:0;
+    padding:0;
+    list-style:none;
+  }
+  a {
+    color:inherit;
+    text-decoration:none;
+  }
+  
+  /* 라이브러리 */
+  .con {
+    margin-left:auto;
+    margin-right:auto;
+  }
+  
+  .bg-black {
+    background-color:black;
+  }
+  
+  .color-white {
+    color:white;
+  }
+  
+  .min-height-100vh{
+    min-height:100vh;
+    /*최소 높이가 100% 만약, 내부 컨텐츠가 많아지면 100%이상으로 무한히 늘어날 순 있지만, 최소 줄어드는 높이는 화면의 100%*/
+  }
+  
+  .float-grid::after{
+    content:"";
+    display:block;
+    clear:both;
+  }
+  
+  .float-grid > *{
+    float:left;
+    box-sizing:border-box;
+  }
+  
+  .height-100p {
+    height:100%;
+  }
+  
+  .height-1000px {
+    height:1000px;
+  }
+  
+  
+  .flex{
+    display:flex;
+  }
+  
+  .jc-c{
+    justify-content:center;
+  }
+  
+  .ai-c{
+    align-items:center;
+  }
+  
+  .fd-column{
+    flex-direction:column;
+  }
+  
+  .grow-1{
+    flex-grow:1;
+  }
+  
+  .bd-green{
+    border:2px solid green;
+  }
+  
+  .block{
+    display:block;
+  }
+  
+  .hover-underline:hover{
+    text-decoration:underline;
+  }
+  /* 커스텀 */
+  .con-min-width {
+    min-width:1200px;
+  }
+  
+  .con {
+    width:1200px;
+  }
+  /*로고바 시작*/
+  .logo-bar{
+    background-color:black;
+    color:white;
+    height:150px;
+  }
+  /*로고바 끝*/
+  
+  /*로고 시작*/
+  .logo{
+    font-size:4rem;
+  }
+  .logo > span{
+    padding-left:10px;
+  }
+  .logo > span > span{
+    color:red;
+  }
+  /*로고 끝*/
+  
+  
+  /* 메뉴바 시작 */
+  .menu-bar{
+    background-color:black;
+    color:white;
+  }
+  
+  
+  .menu-bar__menu ul >li{
+    position:relative;
+  }
+  
+  .menu-bar__menu > ul >li{
+    width:25%;
+  }
+  
+  .menu-bar__menu ul > li > a{
+    text-align:center;
+    padding:20px 0;
+  }
+  
+  .menu-bar__menu > ul > li > a{
+    border-radius:10px 10px 0 0;
+  }
+  
+  .menu-bar__menu ul >li:hover>a{
+    background-color:white;
+    color:black;
+  }
+  
+  .menu-bar__menu > ul ul{
+    display:none;
+    position:absolute;
+    top:100%;
+    left:-10px;
+    width:100%;
+    background-color:black;
+    color:white;
+    border:10px solid black;
+    border-top-width:0;
+    border-radius:0 0 20px 20px;
+  }
+  
+  .menu-bar__menu ul >li:hover>ul{
+    display:block;
+  }
+  
+  .menu-bar__menu > ul ul > li:last-child > a{
+   border-radius:0 0 10px 10px;
+  }
+  /*메뉴바 끝*/
+  
+  /*타이틀바 시작*/
+  .title-bar{
+    margin-top:30px;
+    margin-bottom:30px;
+  }
+  /*타이틀바 끝*/
+  
+  /*하단바 시작*/
+  .bottom-bar{
+    background-color:black;
+    color:white;
+    margin-top:30px;
+  }
+  
+  .bottom-bar__site-info{
+    padding-left:20px;
+    padding-top:30px;
+    padding-bottom:30px;
+  }
+  
+  .logo--mini{
+    font-size:2rem;
+  }
+  
+  /*하단바 끝*/
+  
+  /*게시물 리스트 시작*/
+  :root {
+    --article-list__cell-id__width:100px;
+    --article-list__cell-reg-date__width:250px;
+    --article-list__cell-writer__width:150px;
+    --article-list__cell-title__width:calc( 100% - var(--article-list__cell-id__width) - var(--article-list__cell-reg-date__width) - var(--article-list__cell-writer__width));
+  }
+  
+  .article-list > * > div{
+    display:flex;
+  }
+  
+  .article-list > * > div::after{
+    content:"";
+    display:block;
+    clear:both;
+  }
+  .article-list > header > div > div{
+    position:relative;
+  }
+  
+  .article-list > header > div > div:not(:last-child)::after{
+    content:"";
+    top:50%;
+    transform:translatey(-50%);
+    right:0;
+    position:absolute;
+    width:1px;
+    height:10px;
+    background-color:black;
+  }
+  
+  .article-list > * > div > div{
+    box-sizing:border-box;
+    text-align:center;
+    padding-top:10px;
+    padding-bottom:10px;
+  }
+  
+  .article-list__cell-id{
+    width:var(--article-list__cell-id__width);
+  }
+  .article-list__cell-reg-date{
+    width:var(--article-list__cell-reg-date__width);
+  }
+  .article-list__cell-writer{
+    width:var(--article-list__cell-writer__width);
+  }
+  .article-list__cell-title{
+    width:var(--article-list__cell-title__width);
+  }
+  
+  .article-list > main .article-list__cell-title {
+    text-align:left;
+    padding-left:10px;
+  }
+  
+  .article-list > main > div {
+    border-top:2px solid black;
+  }
+  /*게시물 리스트 끝*/
+</style>
+</head>
+
+<body>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+
+<div class="body-content min-height-100vh flex fd-column">
+<!--상단-로고바 시작-->
+<header class="logo-bar con-min-width">
+  <div class="con height-100p flex jc-c">
+    <a href="#" class="logo flex ai-c">
+      <i class="fab fa-jenkins"></i>
+      <span>Develo<span>p</span>ers</span>
+    </a>
+  </div>
+</header>
+<!--상단-로고바 끝-->
+
+<!--메뉴바 시작-->
+<header class="menu-bar con-min-width">
+  <div class="con height-100p">
+    <nav class="menu-bar__menu">
+      <ul class="flex">
+        <li>
+          <a href="./1" class="block">
+          <i class="fas fa-home"></i>
+          <span>HOME</span>
+          </a>
+        </li>
+        <li>
+          <a class="block">
+          <i class="fas fa-list"></i>
+          <span>LIST</span>
+          </a>
+          <ul>
+            <li>
+              <a href="/pasing/1" class="block">
+                <i class="fab fa-free-code-camp"></i>
+                <span>Block_list</span>  
+              </a>
+            </li>
+            <li>
+              <a href="/pasing_log/1" class="block">
+                <i class="fas fa-flag"></i>
+                <span>Log</span>
+              </a>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <a class="block">
+          <i class="fas fa-link"></i>
+          <span>LINK</span>
+          </a>
+          <ul>
+            <li>
+              <a href="https://whalebee.github.io/" target="blink" class="block">
+                <i class="fab fa-blogger-b"></i>
+                <span>BLOG</span>  
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/whalebee/CODETIME" target="blink" class="block">
+                <i class="fab fa-github"></i>
+                <span>TEAM GITHUB</span>
+              </a>
+            </li>
+          </ul>
+        </li>
+        <li>
+          <a class="block">
+          <i class="fab fa-github"></i>
+          <span>Members</span>
+          </a>
+          <ul>
+            <li>
+              <a href="https://github.com/whalebee/CODETIME/tree/wanjong" target="blink" class="block">
+                <i class="fab fa-github"></i>
+                <span>봉's제자 김완종</span>  
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/whalebee/CODETIME/tree/seoyoung" target="blink" class="block">
+                <i class="fab fa-github"></i>
+                <span>막둥이 김서영</span>
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/whalebee/CODETIME/tree/jihwan" target="blink" class="block">
+                <i class="fab fa-github"></i>
+                <span>딸기망토꽃카 정지환</span>
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/whalebee/CODETIME/tree/eunji" target="blink" class="block">
+                <i class="fab fa-github"></i>
+                <span>레오집사 최은지</span>
+              </a>
+            </li>
+          </ul>
+        </li>
+
+      </ul>
+    </nav>
+  </div>
+</header>
+<!--메뉴바 끝-->
+
+
+
+
+<!--게시물 리스트 시작-->
+<main class="grow-1">
+  <div class="title-bar con-min-width">
+  <h1 class="con">
+    <i class="fas fa-flag"></i>
+    <span>차단 리스트</span>
+  </h1>
+</div>
+
+<a href="/insert" style="font-size:larger" style="color: blue;">차단 목록 추가하기</a>
+
+  <section class="section-1 con-min-width">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>아이디</th>
+          <th>도메인</th>
+          <th>코멘트</th>
+          <th>등록시간</th>
+          <th>삭제</th>
+          <th>수정</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <% data.forEach(function (row,index){ %>
+          <tr>
+            <td>
+              <%= row.id %>
+            </td>
+            <td>
+              <a href='/detail/<%= row.id %>'><%= row.domain %></a>
+            </td>
+            <td>
+              <%= row.comment %>
+            </td>
+            <td>
+              <%= row.created_at %>
+            </td>
+            <td>
+              <a href="/delete/<%= row.id %>">삭제</a>
+            </td>
+            <td>
+              <a href="/edit/<%= row.id %>">수정</a>
+            </td>
+          </tr>
+          <% })%>
+      </tbody>
+    </table>
+  </div>
+
+
+
+  <div class="container">
+    <ul class="pager">
+
+
+
+<%
+var curSet = pasing.curSet
+var endPage = pasing.endPage
+var startPage = pasing.startPage
+var totalSet = pasing.totalSet
+var totalPage = pasing.totalPage
+var page_list_size = pasing.page_list_size
+var page_size = pasing.page_size
+var curPage = pasing.curPage
+%>
+
+
+<%
+        if(curSet > 1){
+      %>
+
+          <li value=(startPage -1) class="previous">
+            <a href='/pasing/<%= ( startPage - 1) %>'>이전페이지</a>
+          </li>
+
+          <%
+      }
+        %>
+
+
+        <%
+    for(var i = startPage; i <= endPage; i++){
+      if(i > totalPage){break;}
+
+      if(i == curPage){
+      %>
+          <li value=<%= i %> class='' >
+          <a href='/pasing/<%= i %>'>
+            <%= i %>
+          </a>
+          </li>
+
+          <%
+        }else{
+    %>
+
+    <li value=<%= i %> class='active' >
+        <a href='/pasing/<%= i %>'>
+          <%= i %>
+        </a>
+        </li>
+
+
+      <% 
+        }
+      %>  
+
+      <%  
+    }
+    %>
+
+        <%
+        if(curSet < totalSet){
+        %>
+                        <li value=( endPage + 1) class="next">
+                          <a href='/pasing/<%= ( endPage + 1) %>'>다음페이지</a>
+                        </li>
+          <%
+          }
+          %>
+
+    </ul>
+  </div>
+
+  <br>
+  <br>
+
+
+
+
+
+</section>
+</main>
+<!--게시물 리스트 끝-->
+
+<!--하단바 시작-->
+<footer class="bottom-bar con-min-width">
+  <div class="con flex ai-c">
+    <a href="#" class="logo logo--mini flex ai-c">
+      <i class="fab fa-jenkins"></i>
+      <span>Develo<span>p</span>ers</span>
+    </a>
+    <div class="bottom-bar__site-info">
+      자기실력이 좋다고 느껴지는 건 공부를 안 하고 있다는 신호다. 개발자 되었다면 공부하자.
+    </div>
+  </div>
+</footer>
+<!--하단바 끝-->
+</div>
+<!-- partial -->
+  
+</body>
+</html>

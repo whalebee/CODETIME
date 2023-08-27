@@ -1,0 +1,85 @@
+메뉴얼
+
+----- 파일 내용 수정 -----
+
+1. c 파일
+221줄 IP, db유저정보, Database 이름 등 수정
+851줄 톰캣웹서버의 IP로 적어놓아서 다른 로그들이 남지 않게 했습니다만,
+		필요없다면 if !strcmp 조건문만 없애면 됩니다 !
+		
+2. node 파일
+2-1. lib_login/db.js 안에 내용
+
+
+3. DNS
+-------- name.conf
+// This is the primary configuration file for the BIND DNS server named.
+//
+// Please read /usr/share/doc/bind9/README.Debian.gz for information on the
+// structure of BIND configuration files in Debian, *BEFORE* you customize
+// this configuration file.
+//
+// If you are just adding zones, please do that in /etc/bind/named.conf.local
+
+include "/etc/bind/named.conf.options";
+include "/etc/bind/named.conf.local";
+include "/etc/bind/named.conf.default-zones";
+
+zone "lostark.com" IN {
+        type master;
+        file "/etc/bind/db.lostark.com";
+};
+
+-------- db.lostark.com
+;
+; BIND data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA     lostark.com. root.lostark.com. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      lostark.com.
+@       IN      A       192.168.111.150
+NS      IN      A       192.168.111.150
+www     IN      A       192.168.111.150
+
+
+
+4. DB name : project_db
+---------- tb_pakcet_block : 유해사이트 차단 목록
+CREATE TABLE `tb_packet_block` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `src_ip` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `src_port` int DEFAULT NULL,
+  `dst_ip` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `dst_port` int DEFAULT NULL,
+  `domain` varchar(260) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `comment` varchar(150) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+---------- tb_pakcet_log : 접속 목록
+CREATE TABLE `tb_packet_log` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `src_ip` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `src_port` int DEFAULT NULL,
+  `dst_ip` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `dst_port` int DEFAULT NULL,
+  `domain` varchar(260) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `result` int DEFAULT NULL,
+  `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+---------- user_table : 회원정보
+CREATE TABLE user_table (
+  id int(12) NOT NULL AUTO_INCREMENT,
+  username varchar(50) NOT NULL,
+  password varchar(255) NOT NULL,
+  PRIMARY KEY(id)
+) charset=utf8;

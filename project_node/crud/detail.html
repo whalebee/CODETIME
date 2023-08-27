@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>유해사이트의 상세한 정보</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <h2>정보</h2>
+  <p></p>
+  <form method="POST">
+
+    <div class="form-group">
+            <label for="id">아이디:</label>
+            <input type="text" class="form-control" id="id" name= "id" value = "<%= data.id%>" disabled>
+          </div>
+
+    <div class="form-group">
+      <label for="domain">도메인:</label>
+      <input type="text" class="form-control" id="domain" name= "domain" value = "<%= data.domain%>" disabled>
+    </div>
+    <div class="form-group">
+      <label for="comment">코멘트</label>
+      <input type="text" class="form-control" id="comment" name="comment" value = "<%= data.comment%>" disabled>
+    </div>
+    <div class="form-group">
+      <label for="created_at">시간</label>
+      <input type="text" class="form-control" id="created_at" name="created_at" value = "<%= data.created_at%>" disabled>
+    </div>
+    <div class="form-group">
+      <label for="src_ip">출발지 IP</label>
+      <input type="text" class="form-control" id="src_ip" name="src_ip" value = "<%= data.src_ip%>" disabled>
+    </div>
+    <div class="form-group">
+      <label for="src_port">출발지 PORT</label>
+      <input type="text" class="form-control" id="src_port" name="src_port" value = "<%= data.src_port%>" disabled>
+    </div>
+    <div class="form-group">
+      <label for="dst_ip">도착지 IP</label>
+      <input type="text" class="form-control" id="dst_ip" name="dst_ip" value = "<%= data.dst_ip%>" disabled>
+    </div>
+    <div class="form-group">
+      <label for="dst_port">도착지 PORT</label>
+      <input type="text" class="form-control" id="dst_port" name="dst_port" value = "<%= data.dst_port%>" disabled>
+    </div>
+  </form>
+</div>
+
+</body>
+</html>
