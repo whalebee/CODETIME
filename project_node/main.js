@@ -4,10 +4,9 @@ var bodyParser = require('body-parser');
 var morgan = require('morgan');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
-
 var authRouter = require('./lib_login/auth');
 var domainRouter = require('./routes/domain.js');
-// var mysql = require('mysql');                       
+                 
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(session({

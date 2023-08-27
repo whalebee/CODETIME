@@ -1,6 +1,5 @@
 var express = require('express');
 var router = express.Router();
-
 var template = require('./template.js');
 var db = require('./db.js');
 

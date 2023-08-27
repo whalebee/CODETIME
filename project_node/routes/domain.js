@@ -4,9 +4,7 @@ var mysql = require('mysql')
 var fs = require('fs')
 var ejs = require('ejs')
 var bodyParser = require('body-parser');
-
 var authCheck = require('../lib_login/authCheck.js');
-var template = require('../lib_login/template.js');
 var db = require('../lib_login/db.js');
 
 
@@ -116,7 +114,7 @@ router.get("/pasing/:cur", function (req, res) {
 router.get("/pasing_log/:cur", function (req, res) {
 
 
-    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    if (!authCheck.isOwner(req, res)) {  
         res.redirect('/auth/login');
         return false;
       }
@@ -215,7 +213,7 @@ router.get("/pasing_log/:cur", function (req, res) {
 
 // 메인 페이지
 router.get('/', (req, res) => {
-  if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+  if (!authCheck.isOwner(req, res)) {  
     res.redirect('/auth/login');
     return false;
   }
@@ -226,7 +224,7 @@ router.get('/', (req, res) => {
 // delete_block
 router.get("/delete/:id", function (req, res) {
 
-    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    if (!authCheck.isOwner(req, res)) {  
         res.redirect('/auth/login');
         return false;
       }
@@ -242,7 +240,7 @@ router.get("/delete/:id", function (req, res) {
 // delete_log
 router.get("/delete_log/:id", function (req, res) {
 
-    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    if (!authCheck.isOwner(req, res)) {  
         res.redirect('/auth/login');
         return false;
       }
@@ -257,7 +255,7 @@ router.get("/delete_log/:id", function (req, res) {
 
 // insert
 router.get("/insert", function (req, res) {
-    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    if (!authCheck.isOwner(req, res)) {  
         res.redirect('/auth/login');
         return false;
       }
@@ -272,7 +270,7 @@ router.get("/insert", function (req, res) {
 })
 // insert post
 router.post("/insert", function (req, res) {
-    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    if (!authCheck.isOwner(req, res)) {  
         res.redirect('/auth/login');
         return false;
       }
@@ -288,7 +286,7 @@ router.post("/insert", function (req, res) {
 
 // edit
 router.get("/edit/:id", function (req, res) {
-    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    if (!authCheck.isOwner(req, res)) { 
         res.redirect('/auth/login');
         return false;
       }
@@ -309,7 +307,7 @@ router.get("/edit/:id", function (req, res) {
 })
 // edit post
 router.post("/edit/:id", function (req, res) {
-    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    if (!authCheck.isOwner(req, res)) {  
         res.redirect('/auth/login');
         return false;
       }
@@ -327,7 +325,7 @@ router.post("/edit/:id", function (req, res) {
 // detail
 router.get("/detail/:id", function (req, res) {
 
-    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    if (!authCheck.isOwner(req, res)) {  
         res.redirect('/auth/login');
         return false;
       }
@@ -345,7 +343,7 @@ router.get("/detail/:id", function (req, res) {
 
 // detail log
 router.get("/detail_log/:id", function (req, res) {
-    if (!authCheck.isOwner(req, res)) {  // 로그인 안되어있으면 로그인 페이지로 이동시킴
+    if (!authCheck.isOwner(req, res)) {  
         res.redirect('/auth/login');
         return false;
       }

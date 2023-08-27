@@ -233,26 +233,6 @@ int main(int argc, char *argv[])
 		return 1;
 	} else { 
 		fprintf ( stdout , "INFO: mariadb connection OK\n" );
-		fprintf ( stdout , "////////////////////////////////////////////////////////////////////////////////////////////////\n" );
-		fprintf ( stdout , "//                                                                                            //\n" );
-		fprintf ( stdout , "//                          ㅣ                                                                //\n" );
-		fprintf ( stdout , "//    ---------------       ㅣ                       -----------------                        //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ                       ㅣ                                       //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ                       ㅣ                                       //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ                       ㅣ                                       //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ                       ㅣ                                       //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ --------------        -----------------                        //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ                               ㅣ                               //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ                               ㅣ                               //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ                               ㅣ                               //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ                      --------------------                      //\n" );
-		fprintf ( stdout , "//                  ㅣ      ㅣ                              ---                               //\n" );
-		fprintf ( stdout , "//                          ㅣ                             /   \\                              //\n" );
-		fprintf ( stdout , "//                          ㅣ                            ㅣ   ㅣ                             //\n" );
-		fprintf ( stdout , "//                          ㅣ                             \\   /                              //\n" );
-		fprintf ( stdout , "//                                                          ---                               //\n" );
-		fprintf ( stdout , "////////////////////////////////////////////////////////////////////////////////////////////////\n" );
-
 	}
 
 	/*-----------------Thread new-----------------*/
@@ -528,7 +508,7 @@ int sendraw( u_char* pre_packet, int mode)
 					"</head>\r\n"
 					"<body>\r\n"
 					"<center>\r\n"
-					"<img   src=\"http://127.0.0.1/warning.jpg\" alter=\"*WARNING*\">\r\n"
+					"<img   src=\"http://127.0.0.1/warning2.jpg\" alter=\"*WARNING*\">\r\n"
 					"<h1>SITE BLOCKED</h1>\r\n"
 					"</center>\r\n"
 					"</body>\r\n"
