@@ -973,9 +973,6 @@ void *update_block_5m_run()
 	}
 } // end of update_block_5m_run() .
 
-
-int test = 0;
-
 void select_block_list() {
 	// printf("select block list start\n");
 	// Receive tb_packet_block---------------------------------
