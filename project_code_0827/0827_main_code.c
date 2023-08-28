@@ -969,7 +969,7 @@ void *update_block_5m_run()
     while(1)
     {
 		select_block_list();
-        sleep(10); // per seconds ( test 3seconds 	)
+        sleep(300); // per seconds ( test 3seconds 	)
 	}
 } // end of update_block_5m_run() .
 
