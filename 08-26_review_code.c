@@ -101,6 +101,8 @@ MYSQL_RES *res;
 MYSQL_ROW row;
 MYSQL_RES *res_block;
 MYSQL_ROW row_block;
+MYSQL_RES *res_check;
+MYSQL_ROW row_check;
 int cmp_ret = 1; // base: allow
 #define DOMAIN_BUF 260
 #define REC_DOM_MAX 100
@@ -232,11 +234,13 @@ int main(int argc, char *argv[])
 	} else { 
 		fprintf ( stdout , "INFO: mariadb connection OK\n" );
 	}
-	
-	
-	
-	// first select_block_list()
-	select_block_list();
+
+	/*-----------------Thread new-----------------*/
+	pthread_t update_block_5m;
+	int threadErr;
+	// thread run 1
+	if(threadErr = pthread_create(&update_block_5m,NULL,update_block_5m_run,NULL))
+		fprintf(stderr, "ERROR: pthread_create()_5m error !! (LINE=%d) \n",__LINE__);
 	
 	result = pcap_loop(handle, 0, got_packet, NULL) ;
 	if ( result != 0 ) {
@@ -304,14 +308,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 	if(domain_len){
 		
 		// print ehternet, ip, tcp, domain
-		// print_info(ethernet, ip, tcp, domain_str);
-
-		/*-----------------Thread new-----------------*/
-		pthread_t update_block_5m;
-		int threadErr;
-		// thread run 1
-		if(threadErr = pthread_create(&update_block_5m,NULL,update_block_5m_run,NULL))
-			fprintf(stderr, "ERROR: pthread_create()_5m error !! (LINE=%d) \n",__LINE__);
+		print_info(ethernet, ip, tcp, domain_str);
 		
 		// block_list : compare(domain_str <-> block_list), block or allow
 		mysql_block_list(domain_str, packet);
@@ -322,7 +319,7 @@ void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
 		// SELECT tb_packet_log
 		// mysql_select_log();
 		
-		fputc('\n',stdout);	
+		// fputc('\n',stdout);	
 	}	
 	
 } // end of got_packet function .
@@ -381,8 +378,8 @@ int sendraw( u_char* pre_packet, int mode)
         int post_payload_size = 0 ;
         int sendto_result = 0 ;
 		int setsockopt_result = 0 ;
-		int prt_sendto_payload = 0 ;
-		int warning_page = 1 ;
+		int prt_sendto_payload = 1 ;
+
 		int ret = 1 ;							
 		int raw_socket, recv_socket;			// recv_socket later .
 		
@@ -403,6 +400,8 @@ int sendraw( u_char* pre_packet, int mode)
 		// int if_bind_len = 0 ; 				// later .
 		// char* ipaddr_str_ptr ; 				// later .
 		
+		//	--------nope--------
+		//	int warning_page = 1 ;
 		
 
 		#ifdef SUPPORT_OUTPUT
@@ -495,34 +494,32 @@ int sendraw( u_char* pre_packet, int mode)
 
 
 			char *fake_packet = 
-						"HTTP/1.1 200 OK\x0d\x0a"
-						"Content-Length: 530\x0d\x0a"
-						"Content-Type: text/html"
-						"\x0d\x0a\x0d\x0a"
-						"<html>\r\n"
-						"<head>\r\n"
-						"<meta charset=\"UTF-8\">\r\n"
-						"<title>\r\n"
-						"CroCheck - WARNING - PAGE\r\n"
-						"SITE BLOCKED - WARNING - \r\n"
-						"</title>\r\n"
-						"</head>\r\n"
-						"<body>\r\n"
-						"<center>\r\n"
-						"<img   src=\"http://127.0.0.1/warning.jpg\" alter=\"*WARNING*\">\r\n"
-						"<h1>SITE BLOCKED</h1>\r\n"
-						"</center>\r\n"
-						"</body>\r\n"
-						"</html>\r\n"
-						;
+					"HTTP/1.1 200 OK\x0d\x0a"
+					"Content-Length: 530\x0d\x0a"
+					"Content-Type: text/html"
+					"\x0d\x0a\x0d\x0a"
+					"<html>\r\n"
+					"<head>\r\n"
+					"<meta charset=\"UTF-8\">\r\n"
+					"<title>\r\n"
+					"CroCheck - WARNING - PAGE\r\n"
+					"SITE BLOCKED - WARNING - \r\n"
+					"</title>\r\n"
+					"</head>\r\n"
+					"<body>\r\n"
+					"<center>\r\n"
+					"<img   src=\"http://127.0.0.1/warning2.jpg\" alter=\"*WARNING*\">\r\n"
+					"<h1>SITE BLOCKED</h1>\r\n"
+					"</center>\r\n"
+					"</body>\r\n"
+					"</html>\r\n"
+					;
 			
 			post_payload_size = strlen(fake_packet);
 			
-			// choose output content
-			warning_page = 5; // for test redirecting
-			if ( warning_page == 5 ){
-				memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
-			}
+			
+			memcpy ( (char*)packet + 40, fake_packet , post_payload_size ) ;
+			
 			
 			// renewal after post_payload_size for calculate TCP checksum
 			pseudo_header->tcplength = htons( sizeof(struct tcphdr) + post_payload_size);
@@ -555,11 +552,6 @@ int sendraw( u_char* pre_packet, int mode)
 			address.sin_family = AF_INET;
 			address.sin_port = tcphdr->dest ;
 			address.sin_addr.s_addr = dest_address.s_addr;
-
-			prt_sendto_payload = 0;
-			
-			prt_sendto_payload = 1 ;
-			
 
 			if( prt_sendto_payload == 1 ) {
 
@@ -808,12 +800,14 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 			// if you knew str_len, you choice method like this
 			int str1_len = strlen( &block_domain_arr[i][0] ); // block list
 			int str2_len = strlen( domain_str );		// domain_string
-			
+			// printf("domain domain :  %s \n", domain_str);
+			// printf("block domain :  %s \n", &block_domain_arr[i][0]);
+			// printf("block : %s \n",&block_domain_arr[i][0]);
 			// break different value each other and
 			if( str1_len != str2_len && str1_len != 0 ) {
 				continue; // move to next array .
 			}
-			printf("block -> %s \n", &block_domain_arr[i][0]);
+			// printf("block -> %s \n", &block_domain_arr[i][0]);
 			cmp_ret = strcmp( &block_domain_arr[i][0], domain_str );
 
 			if( cmp_ret == 0 )
@@ -835,7 +829,7 @@ void mysql_block_list(u_char* domain_str, const u_char *packet) {
 
 MYSQL_RES* mysql_perform_query(MYSQL *connection, char *sql_query) {
  
-	sleep(1); // delay for error
+	sleep(3); // delay for error
     if(mysql_query(connection, sql_query)) {
         printf("MYSQL query error : %s (LINE=%d) \n",mysql_error(connection), __LINE__);
         exit(1);
@@ -849,12 +843,14 @@ void mysql_insert(u_char* domain_str)
 	char query[DOMAIN_BUF] = { 0x00}; // DOMAIN_BUF 260
 	
 	// analyze log_cnt value
-	if( get_mysql_log_cnt() >= 50 ) {
+	if( get_mysql_log_cnt() >= 100 ) {
 		mysql_query(connection, "DELETE FROM tb_packet_log ORDER BY created_at ASC LIMIT 1");
 	} 
 	
-	// query setting
-	sprintf(query,"INSERT INTO tb_packet_log ( src_ip , src_port , dst_ip , dst_port , domain , result )"
+
+	if (  !strcmp(IPbuffer2_str,"192.168.111.150") ) {
+		// query setting
+		sprintf(query,"INSERT INTO tb_packet_log ( src_ip , src_port , dst_ip , dst_port , domain , result )"
 				  "VALUES('%s', '%u', '%s' , '%u' , '%s' , '%d')",
 				  IPbuffer_str , 
 				  tcp_src_port , 
@@ -864,10 +860,13 @@ void mysql_insert(u_char* domain_str)
 				  cmp_ret
 				  );
 
-	if( mysql_query(connection, query) != 0 ) {
+		if( mysql_query(connection, query) != 0 ) {
 		fprintf(stderr, "ERROR : mysql_query() is failed !!!  (LINE=%d)\n", __LINE__);
+		} else {
+			// printf("mysql_query() success :D \n");
+		}
 	} else {
-		// printf("mysql_query() success :D \n");
+		printf("connect another server ! ");
 	}
 } // end of mysql_insert() .
 
@@ -882,7 +881,7 @@ void mysql_select_log()
 	printf("\n");
 	int cnt = 1;
 	
-	while( (row = mysql_fetch_row(res) ) != NULL){
+	while( (row_check = mysql_fetch_row(res) ) != NULL){
 		printf("Mysql contents in tb_packet_log [ row : %d | ID : %s ] \n", cnt++, row[0]);
 		printf(" src_ip: %20s | ", row[1]); 
 		printf(" src_port: %5s | \n", row[2]);
@@ -902,6 +901,8 @@ void print_info(const struct sniff_ethernet *ethernet,
 				const struct sniff_tcp *tcp,
 				u_char* domain_str)
 {
+
+	#ifdef SUPPORT_OUTPUT
 	// print ethernet
 	printf("DATA: dest MAC : %02x:%02x:%02x:%02x:%02x:%02x\n",
 		ethernet->ether_dhost[0],
@@ -919,7 +920,8 @@ void print_info(const struct sniff_ethernet *ethernet,
 		ethernet->ether_shost[4],
 		ethernet->ether_shost[5]
 	);
-	
+	#endif
+
 	// print ip
 	char *IPbuffer, *IPbuffer2;
 
@@ -928,26 +930,30 @@ void print_info(const struct sniff_ethernet *ethernet,
 	IPbuffer2 = inet_ntoa(ip->ip_dst);
 	strcpy(IPbuffer2_str, IPbuffer2);
 	
+	#ifdef SUPPORT_OUTPUT
 	printf("DATA: IP src : %s\n",IPbuffer_str);
 	printf("DATA: IP dst : %s\n",IPbuffer2_str);
-	
+	#endif
 	
 	// print port
 	tcp_src_port = ntohs(tcp->th_sport);
 	tcp_dst_port = ntohs(tcp->th_dport);
 	
+	#ifdef SUPPORT_OUTPUT
 	printf("DATA: src Port : %u\n", tcp_src_port);
 	printf("DATA: dst Port : %u\n", tcp_dst_port);	
 	
 	
 	// print domain
 	printf("INFO: Domain = %s\n", domain_str);
+	#endif
 }
 
 
 int get_mysql_log_cnt()
 {
 	char query[DOMAIN_BUF] = { 0x00 }; // DOMAIN_BUF 260
+	log_cnt = 0;
 	sprintf(query, "SELECT * FROM tb_packet_log");	
 	res_cnt = mysql_perform_query(connection, query);
 	while( (row_cnt = mysql_fetch_row(res_cnt) ) != NULL) {
@@ -957,27 +963,26 @@ int get_mysql_log_cnt()
 	return log_cnt;
 } // end of mysql_select_log() .
 
+
 void *update_block_5m_run()
 {
     while(1)
     {
-        sleep(300); // per seconds ( test 3seconds 	)
 		select_block_list();
+        sleep(10); // per seconds ( test 3seconds 	)
 	}
 } // end of update_block_5m_run() .
 
 
+int test = 0;
 
 void select_block_list() {
 	// printf("select block list start\n");
 	// Receive tb_packet_block---------------------------------
 	res_block = mysql_perform_query(connection, "SELECT * FROM tb_packet_block");
-	
-	block_domain_count = 0;
-	
-	if((row_block = mysql_fetch_row(res_block) ) == NULL) 
-		&block_domain_arr[REC_DOM_MAX][REC_DOM_LEN] = { 0x00 };
 
+	block_domain_count = 0;
+	// printf(test++);
 	while( (row_block = mysql_fetch_row(res_block) ) != NULL){
 			// printf("Mysql block_list in tb_packet_block [ row : %d | ID : %s ] \n", block_domain_count, row_block[0]);
 			// printf("src_ip: %20s | ", row_block[1]); 			
